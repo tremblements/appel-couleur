@@ -1,0 +1,86 @@
+.acd-counters {
+    display: flex;
+    gap: 1.5rem;
+    margin: 1rem 0 2rem;
+    flex-wrap: wrap;
+}
+
+.acd-counter {
+    text-align: center;
+    padding: 0.75rem 1.25rem;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 6px;
+    background: #f8f8f8;
+    min-width: 8rem;
+}
+
+.acd-counter-number {
+    display: block;
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.acd-counter-label {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.acd-notice {
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.acd-notice.acd-ok {
+    background: #e6f4ea;
+    border: 1px solid #1a7f37;
+    color: #14532d;
+}
+
+.acd-notice.acd-error {
+    background: #fdecea;
+    border: 1px solid #b3261e;
+    color: #7f1d1d;
+}
+
+.acd-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 32rem;
+}
+
+.acd-form label {
+    font-weight: 600;
+}
+
+.acd-form input[type="text"],
+.acd-form select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #767676;
+    border-radius: 4px;
+}
+
+.acd-form input[type="file"] {
+    padding: 0.5rem;
+    border: 1px dashed #767676;
+    border-radius: 4px;
+    background: #f8f8f8;
+}
+
+.acd-form button[type="submit"] {
+    align-self: flex-start;
+    padding: 0.6rem 1.5rem;
+    border: 0;
+    border-radius: 4px;
+    background: #2271b1;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.acd-form button[type="submit"]:hover {
+    background: #135e96;
+}

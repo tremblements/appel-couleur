@@ -1,0 +1,91 @@
+.dac-depot {
+    max-width: 640px;
+    margin: 2em auto;
+    font-family: inherit;
+}
+
+.dac-counters {
+    display: flex;
+    gap: 1em;
+    margin-bottom: 2em;
+}
+
+.dac-counter {
+    flex: 1;
+    text-align: center;
+    padding: 1em;
+    background: #f6f6f6;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.dac-counter-number {
+    font-size: 2em;
+    font-weight: 700;
+}
+
+.dac-counter-label {
+    font-size: 0.9em;
+    color: #555;
+}
+
+.dac-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75em;
+}
+
+.dac-label {
+    font-weight: 600;
+}
+
+.dac-input,
+.dac-file {
+    padding: 0.5em;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+.dac-categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1em;
+}
+
+.dac-category {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+}
+
+.dac-submit {
+    padding: 0.75em 1.5em;
+    border: 0;
+    border-radius: 6px;
+    background: #2271b1;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.dac-submit:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.dac-message {
+    min-height: 1.5em;
+}
+
+.dac-message.dac-success {
+    color: #1a7f37;
+}
+
+.dac-message.dac-error {
+    color: #b32d2e;
+}
+
+.dac-message.dac-loading {
+    color: #555;
+}

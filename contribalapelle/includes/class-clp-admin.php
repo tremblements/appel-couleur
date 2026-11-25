@@ -13,10 +13,10 @@ class CLP_Admin
     public static function menu(): void
     {
         add_menu_page(
-            'Contribalapelle',
+            'Contribalapelle — Suivi des dépôts',
             'Contribalapelle',
             'manage_options',
-            'contribalapelle',
+            'contribalapelle-suivi',
             array(__CLASS__, 'render_page'),
             'dashicons-upload',
             80

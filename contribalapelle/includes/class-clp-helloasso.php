@@ -87,6 +87,28 @@ class CLP_HelloAsso
         return $candidates;
     }
 
+    public static function count_authorized_orders(): array
+    {
+        $out = array('ok' => false, 'reason' => '', 'count' => 0);
+        $settings = self::settings_ready();
+        if (is_wp_error($settings)) {
+            $out['reason'] = 'configuration-incomplete';
+            return $out;
+        }
+        $fetched = self::fetch_all_orders($settings);
+        if ($fetched['error'] !== '') {
+            $out['reason'] = $fetched['error'];
+            return $out;
+        }
+        foreach ($fetched['orders'] as $order) {
+            if (is_array($order) && self::order_ok($order)) {
+                $out['count']++;
+            }
+        }
+        $out['ok'] = true;
+        return $out;
+    }
+
     private static function settings_ready()
     {
         $settings = CLP_Settings::get();

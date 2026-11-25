@@ -11,7 +11,10 @@ est rangé dans Dropbox après vérification du ticket.
   le formulaire reste visible en lecture seule avec les dates affichées ; tout dépôt est refusé côté serveur.
 - **Vérification du ticket** : au moment du dépôt, l'identifiant saisi — **numéro de ticket ou adresse
   e-mail utilisée pour l'achat** (cahier des charges §4 : « ou éventuellement son adresse mail ») — est
-  vérifié en temps réel via l'API HelloAsso v5 (commande payée/autorisée de la billetterie de l'appel).
+  vérifié en temps réel via l'API HelloAsso v5 (commande payée/autorisée de la billetterie de l'appel,
+  et **uniquement** celle-ci : l'API interrogée est scoped sur l'organisation + le formulaire réglé).
+  Un bouton « Tester la connexion à la billetterie » sur la page des réglages affiche le nombre de
+  commandes payées trouvées dans la billetterie configurée.
   L'e-mail est recherché parmi les payeurs des commandes ; la clé interne reste le numéro de ticket
   résolu. La correspondance ticket ↔ commande (et e-mail du payeur) est enregistrée localement après la
   première vérification pour tracer les dépôts sans réinterroger l'API à chaque étape du formulaire.

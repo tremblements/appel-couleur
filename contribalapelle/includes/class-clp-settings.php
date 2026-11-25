@@ -13,6 +13,43 @@ class CLP_Settings
     {
         add_action('admin_menu', array(__CLASS__, 'add_menu'));
         add_action('admin_init', array(__CLASS__, 'register_settings'));
+        add_action('wp_ajax_clp_admin_test_ha', array(__CLASS__, 'test_helloasso'));
+    }
+
+    public static function test_helloasso(): void
+    {
+        check_ajax_referer('clp_admin_test_ha', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_send_json(array('success' => false, 'message' => 'Accès refusé.'), 403);
+        }
+        $result = CLP_HelloAsso::count_authorized_orders();
+        if (!$result['ok']) {
+            wp_send_json(array('success' => false, 'message' => 'Échec de la connexion : ' . self::ha_reason_message($result['reason'])));
+        }
+        $s = self::get();
+        wp_send_json(array(
+            'success' => true,
+            'message' => sprintf(
+                'Billetterie trouvée : organisation « %s », formulaire %s « %s » — %d commande(s) payée(s) (autorisée(s)) dans cette billetterie.',
+                $s['helloasso_org_slug'],
+                $s['helloasso_form_type'],
+                $s['helloasso_form_slug'],
+                $result['count']
+            ),
+        ));
+    }
+
+    private static function ha_reason_message(string $reason): string
+    {
+        $messages = array(
+            'configuration-incomplete' => 'Client ID / Client Secret / slug d\'organisation / slug de billetterie incomplet.',
+            'auth-failed' => 'authentification OAuth refusée (vérifiez Client ID / Client Secret).',
+            'network-error' => 'réseau injoignable.',
+        );
+        if (strncmp($reason, 'api-error-', 10) === 0) {
+            return 'l\'API renvoie ' . $reason . ' (vérifiez le slug d\'organisation, le type de formulaire et le slug de la billetterie).';
+        }
+        return isset($messages[$reason]) ? $messages[$reason] : $reason;
     }
 
     public static function defaults(): array
@@ -255,6 +292,27 @@ class CLP_Settings
                         <td><label><input type="checkbox" name="<?php echo esc_attr($o); ?>[allow_email]" value="1" <?php checked($s['allow_email'], '1'); ?>> Les déposants peuvent aussi s'identifier avec l'adresse e-mail utilisée pour l'achat du billet HelloAsso (en plus du numéro de ticket)</label></td>
                     </tr>
                 </table>
+                <p>
+                    <button type="button" class="button" id="clp-test-ha">Tester la connexion à la billetterie</button>
+                    <span id="clp-test-ha-result" style="margin-left:0.5em;"></span>
+                </p>
+                <script>
+                (function () {
+                    var btn = document.getElementById('clp-test-ha');
+                    var out = document.getElementById('clp-test-ha-result');
+                    if (!btn) { return; }
+                    btn.addEventListener('click', function () {
+                        out.textContent = 'Test en cours…';
+                        var fd = new FormData();
+                        fd.append('action', 'clp_admin_test_ha');
+                        fd.append('nonce', <?php echo wp_json_encode(wp_create_nonce('clp_admin_test_ha')); ?>);
+                        fetch(<?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>, { method: 'POST', body: fd, credentials: 'same-origin' })
+                            .then(function (r) { return r.json(); })
+                            .then(function (data) { out.textContent = data.message || 'Erreur inconnue.'; })
+                            .catch(function () { out.textContent = 'Erreur réseau.'; });
+                    });
+                })();
+                </script>
 
                 <h2>Dropbox et limites</h2>
                 <table class="form-table">

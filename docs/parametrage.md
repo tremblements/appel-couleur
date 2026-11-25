@@ -22,9 +22,17 @@ image : les libellés affichés sur le formulaire sont modifiables (utile pour c
 | --- | --- |
 | URL de l'API | `https://api.helloasso.com/v5` (production) — sandbox : `https://api.helloasso-sandbox.com/v5` |
 | Client ID / Client Secret | [dev.helloasso.com](https://dev.helloasso.com) → votre application (OAuth 2.0, grant `client_credentials`) |
-| Slug de l'organisation | dev.helloasso.com → organisation, ou URL de la page publique HelloAsso |
-| Type de formulaire | `Event` pour une billetterie d'événement (appel à contributions), sinon `PaymentForm`, etc. |
-| Slug de la billetterie | dans l'URL de la billetterie : `helloasso.com/associations/<org>/evenements/<slug>` |
+| Slug de l'organisation | dev.helloasso.com → organisation, ou URL de la page publique HelloAsso. **Appel Purple N°13 en cours : `pourtant`** |
+| Type de formulaire | `Event` pour une billetterie d'événement (appel à contributions), sinon `PaymentForm`, etc. **Appel Purple : `Event`** |
+| Slug de la billetterie | dans l'URL publique de la billetterie : `helloasso.com/associations/<org>/evenements/<slug>` (bouton « Voir la page publique » dans le backoffice HelloAsso ; aucun ID numérique n'est nécessaire pour l'API v5). **Appel Purple : `participation-a-pourtant-13-purple`** |
+
+La vérification ne porte **que** sur cette billetterie : l'API interrogée est
+`/organizations/{org}/forms/{type}/{slug}/orders` — un billet acheté sur une autre campagne
+(adhésion, autre appel) ne sera jamais accepté.
+
+Après avoir enregistré les réglages, cliquez sur **« Tester la connexion à la billetterie »**
+(sur la page des réglages) : le plugin compte les commandes payées de la billetterie et confirme
+que le slug est correct.
 | Champ de vérification du ticket | `item_id` (n° d'article, défaut), `order_id` (n° de commande) ou `custom_field` (champ personnalisé du formulaire de vente) selon ce qui figure sur le billet |
 | Identification par e-mail | case cochée par défaut dans les réglages : le déposant peut saisir, à la place du n° de ticket, **l'adresse e-mail utilisée pour l'achat** sur HelloAsso |
 

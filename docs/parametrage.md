@@ -45,9 +45,22 @@ désigne le premier billet non encore déposé.
 
 | Champ | Où le trouver |
 | --- | --- |
-| Access Token | [Dropbox App Console](https://www.dropbox.com/developers/apps) → app du compte de la revue → onglet Settings → « Generated access token » (ou OAuth avec refresh token selon l'app). Portée : `files.content.write`, `files.content.read`, `files.metadata.write` |
+| Access Token | Procédure ci-dessous (App Console) |
 | Dossier racine | créé automatiquement : `Depots-<nom-de-l'appel>/fiction|poesie|image/` |
 | Poids max par fichier | 25 Mo par défaut (le serveur PHP doit avoir `upload_max_filesize` ≥ cette valeur) |
+
+### Créer l'app Dropbox et obtenir l'Access Token
+
+1. Connectez-vous à Dropbox avec **le compte de la revue** (celui qui contiendra les dépôts), puis ouvrez [Dropbox App Console](https://www.dropbox.com/developers/apps) → **Create app**.
+2. Choisissez **Scoped access**, puis le type d'accès :
+   - **App folder** (recommandé) : le dossier `Depots-<nom>/` sera créé dans `Apps/<nom-de-l'app>/` — isolé du reste du compte ;
+   - **Full Dropbox** : `Depots-<nom>/` sera créé **à la racine** du compte Dropbox (à côté de votre dossier existant).
+   Nom de l'app : ex. `Contribalapelle`. Validez.
+3. Onglet **Permissions** : cochez `files.content.write` (upload + suppression), `files.content.read`, `files.metadata.read`, `files.metadata.write` → **Submit**.
+4. Onglet **Settings** → section **OAuth 2** → cliquez **Generate** sous « Generated access token » → copiez le token (commence par `sl.`). S'il est proposé, réglez l'expiration sur **« No expiration »** (sinon le token expire au bout de ~4 h et il faudra le régénérer — on peut ajouter le support refresh token au plugin si besoin).
+5. Collez le token dans **Réglages → Contribalapelle → Access Token Dropbox**, enregistrez.
+
+Le token est un secret : il est stocké dans `wp_options` et n'est jamais journalisé ni affiché côté public.
 
 ## 5. E-mail de confirmation et confidentialité
 

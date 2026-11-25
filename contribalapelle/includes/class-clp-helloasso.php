@@ -108,7 +108,7 @@ class CLP_HelloAsso
 
     public static function count_authorized_orders(): array
     {
-        $out = array('ok' => false, 'reason' => '', 'count' => 0, 'missing' => array());
+        $out = array('ok' => false, 'reason' => '', 'count' => 0, 'total' => 0, 'missing' => array());
         $missing = self::missing_config();
         if ($missing !== array()) {
             $out['reason'] = 'configuration-incomplete';
@@ -125,6 +125,7 @@ class CLP_HelloAsso
             $out['reason'] = $fetched['error'];
             return $out;
         }
+        $out['total'] = count($fetched['orders']);
         foreach ($fetched['orders'] as $order) {
             if (is_array($order) && self::order_ok($order)) {
                 $out['count']++;

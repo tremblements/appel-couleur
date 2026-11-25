@@ -35,10 +35,11 @@ class CLP_Settings
         wp_send_json(array(
             'success' => true,
             'message' => sprintf(
-                'Billetterie trouvée : organisation « %s », formulaire %s « %s » — %d commande(s) payée(s) (autorisée(s)) dans cette billetterie.',
+                'Billetterie trouvée : organisation « %s », formulaire %s « %s » — %d commande(s) au total, dont %d payée(s) (state = Authorized). Seules les commandes payées valident un dépôt.',
                 $s['helloasso_org_slug'],
                 $s['helloasso_form_type'],
                 $s['helloasso_form_slug'],
+                isset($result['total']) ? (int) $result['total'] : 0,
                 $result['count']
             ),
         ));

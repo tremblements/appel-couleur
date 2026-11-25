@@ -36,6 +36,19 @@ est rangé dans Dropbox après vérification du ticket.
    chaque valeur : identifiants API HelloAsso, token Dropbox, dates de la fenêtre, nom de l'appel).
 4. Créer une page WordPress contenant le shortcode `[contribalapelle]` et y intégrer la billetterie
    HelloAsso (options d'intégration proposées par HelloAsso).
+
+   **Insertion du shortcode** : dans l'éditeur de blocs, utiliser le bloc **Shortcode** (ou coller en vue
+   « Éditeur de code » le balisage suivant) :
+
+   ```
+   <!-- wp:shortcode -->
+   [contribalapelle]
+   <!-- /wp:shortcode -->
+   ```
+
+   Ne jamais appliquer le format inline **« Code »** au texte `[contribalapelle]` : le HTML généré serait
+   enfermé dans `<code>…</code>`, et comme un `<div>` ne peut pas vivre dans un `<p>`, le navigateur
+   rejetterait le formulaire hors du bloc de contenu (affichage pleine largeur, non stylé).
 5. Le site doit fonctionner en **HTTPS** ; prévoir `upload_max_filesize` ≥ 25 Mo côté serveur.
 
 Un nouvel appel se configure en modifiant uniquement les paramètres (dates, nom de l'appel, libellés),

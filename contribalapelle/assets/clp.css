@@ -1,6 +1,7 @@
 .clp-depot {
     max-width: 34rem;
-    margin: 1.5rem 0;
+    margin: 1.5rem auto;
+    text-align: left;
     font-family: inherit;
 }
 

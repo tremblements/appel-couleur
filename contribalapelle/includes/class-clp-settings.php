@@ -32,16 +32,32 @@ class CLP_Settings
             wp_send_json(array('success' => false, 'message' => $message));
         }
         $s = self::get();
+        $states_txt = array();
+        foreach ((array) ($result['states'] ?? array()) as $state => $n) {
+            $states_txt[] = $state . '=' . (int) $n;
+        }
+        $message = sprintf(
+            'Billetterie « %s / %s / %s » : %d commande(s) au total [%s], dont %d payée(s) (Authorized). Seules les commandes payées valident un dépôt.',
+            $s['helloasso_org_slug'],
+            $s['helloasso_form_type'],
+            $s['helloasso_form_slug'],
+            isset($result['total']) ? (int) $result['total'] : 0,
+            implode(', ', $states_txt) !== '' ? implode(', ', $states_txt) : 'aucune',
+            $result['count']
+        );
+        if ((int) $result['count'] === 0) {
+            $forms = CLP_HelloAsso::list_forms($s['helloasso_form_type']);
+            if ($forms !== array()) {
+                $lines = array();
+                foreach ($forms as $form) {
+                    $lines[] = $form['formType'] . ' « ' . $form['slug'] . ' » — ' . $form['title'] . ' [' . $form['state'] . ']';
+                }
+                $message .= ' Billetteries de type ' . $s['helloasso_form_type'] . ' de l\'organisation : ' . implode(' | ', $lines);
+            }
+        }
         wp_send_json(array(
             'success' => true,
-            'message' => sprintf(
-                'Billetterie trouvée : organisation « %s », formulaire %s « %s » — %d commande(s) au total, dont %d payée(s) (state = Authorized). Seules les commandes payées valident un dépôt.',
-                $s['helloasso_org_slug'],
-                $s['helloasso_form_type'],
-                $s['helloasso_form_slug'],
-                isset($result['total']) ? (int) $result['total'] : 0,
-                $result['count']
-            ),
+            'message' => $message,
         ));
     }
 

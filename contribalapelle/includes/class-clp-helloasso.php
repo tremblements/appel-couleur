@@ -108,7 +108,7 @@ class CLP_HelloAsso
 
     public static function count_authorized_orders(): array
     {
-        $out = array('ok' => false, 'reason' => '', 'count' => 0, 'total' => 0, 'missing' => array());
+        $out = array('ok' => false, 'reason' => '', 'count' => 0, 'total' => 0, 'states' => array(), 'missing' => array());
         $missing = self::missing_config();
         if ($missing !== array()) {
             $out['reason'] = 'configuration-incomplete';
@@ -126,13 +126,91 @@ class CLP_HelloAsso
             return $out;
         }
         $out['total'] = count($fetched['orders']);
+        $states = array();
         foreach ($fetched['orders'] as $order) {
+            $state = is_array($order) ? (string) ($order['state'] ?? '?') : '?';
+            $states[$state] = isset($states[$state]) ? $states[$state] + 1 : 1;
             if (is_array($order) && self::order_ok($order)) {
                 $out['count']++;
             }
         }
+        $out['states'] = $states;
         $out['ok'] = true;
         return $out;
+    }
+
+    public static function list_forms(string $form_type): array
+    {
+        $forms = array();
+        $settings = self::settings_ready();
+        if (is_wp_error($settings)) {
+            return $forms;
+        }
+        $token = self::get_access_token();
+        if (is_wp_error($token)) {
+            return $forms;
+        }
+        $url = sprintf(
+            '%s/organizations/%s/forms',
+            untrailingslashit($settings['helloasso_api_url']),
+            rawurlencode($settings['helloasso_org_slug'])
+        );
+        $page = 1;
+        $max_pages = 20;
+        $retried = false;
+        while ($page <= $max_pages) {
+            $paged_url = add_query_arg(array(
+                'formTypes' => $form_type,
+                'pageIndex' => $page,
+                'pageSize' => 100,
+            ), $url);
+            $response = wp_remote_get($paged_url, array(
+                'timeout' => 20,
+                'headers' => array(
+                    'Authorization' => 'Bearer ' . $token,
+                    'Accept' => 'application/json',
+                ),
+            ));
+            if (is_wp_error($response)) {
+                break;
+            }
+            $code = wp_remote_retrieve_response_code($response);
+            if ($code === 401 && !$retried) {
+                $retried = true;
+                delete_transient('clp_ha_access_token');
+                $token = self::get_access_token();
+                if (is_wp_error($token)) {
+                    break;
+                }
+                continue;
+            }
+            if ($code !== 200) {
+                break;
+            }
+            $body = json_decode(wp_remote_retrieve_body($response), true);
+            $data = is_array($body) && isset($body['data']) && is_array($body['data']) ? $body['data'] : array();
+            foreach ($data as $form) {
+                if (!is_array($form)) {
+                    continue;
+                }
+                $forms[] = array(
+                    'slug' => isset($form['slug']) ? (string) $form['slug'] : '',
+                    'title' => isset($form['title']) ? (string) $form['title'] : '',
+                    'formType' => isset($form['formType']) ? (string) $form['formType'] : '',
+                    'state' => isset($form['state']) ? (string) $form['state'] : '',
+                );
+            }
+            if ($data === array()) {
+                break;
+            }
+            if (is_array($body) && isset($body['pagination']['totalPages'])) {
+                if ($page >= (int) $body['pagination']['totalPages']) {
+                    break;
+                }
+            }
+            $page++;
+        }
+        return $forms;
     }
 
     private static function settings_ready()
@@ -210,9 +288,10 @@ class CLP_HelloAsso
             if ($orders === array()) {
                 break;
             }
-            $total_pages = is_array($body) && isset($body['pagination']['totalPages']) ? (int) $body['pagination']['totalPages'] : 1;
-            if ($page >= $total_pages) {
-                break;
+            if (is_array($body) && isset($body['pagination']['totalPages'])) {
+                if ($page >= (int) $body['pagination']['totalPages']) {
+                    break;
+                }
             }
             $page++;
         }

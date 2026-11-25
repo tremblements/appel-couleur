@@ -84,13 +84,13 @@ class CLP_Shortcode
             <?php endif; ?>
             <form class="clp-form<?php echo $hidden; ?><?php echo $read_only ? ' clp-readonly' : ''; ?>" id="clp-form" enctype="multipart/form-data" method="post"<?php echo $read_only ? ' aria-disabled="true"' : ''; ?>>
                 <div class="clp-step" id="clp-step-ticket">
-                    <label class="clp-label" for="clp-ticket">Numéro de ticket HelloAsso</label>
+                    <label class="clp-label" for="clp-ticket">Numéro de ticket ou e-mail HelloAsso</label>
                     <input type="text" id="clp-ticket" name="ticket" class="clp-input" required<?php echo $disabled; ?>>
-                    <p class="clp-hint">Le numéro figure sur votre billet ou votre e-mail de confirmation HelloAsso.</p>
+                    <p class="clp-hint">Saisissez le numéro figurant sur votre billet HelloAsso, ou l'adresse e-mail utilisée lors de l'achat du billet.</p>
                     <label class="clp-label" for="clp-email">Votre e-mail (facultatif)</label>
                     <input type="email" id="clp-email" name="email" class="clp-input"<?php echo $disabled; ?>>
                     <p class="clp-hint">Utilisé uniquement pour le message de confirmation si HelloAsso ne le fournit pas.</p>
-                    <button type="button" class="clp-btn" id="clp-verify-btn"<?php echo $disabled; ?>>Vérifier mon numéro</button>
+                    <button type="button" class="clp-btn" id="clp-verify-btn"<?php echo $disabled; ?>>Vérifier</button>
                     <p class="clp-message" id="clp-verify-message" aria-live="polite"></p>
                 </div>
 

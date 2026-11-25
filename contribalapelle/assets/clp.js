@@ -91,10 +91,10 @@
                             lockedSubcategory = data.subcategory;
                         }
                         fillSubcategories();
-                        setMessage(verifyMsg, 'Numéro vérifié.', true);
+                        setMessage(verifyMsg, 'Identifiant vérifié.', true);
                         stepCat.classList.remove('clp-hidden');
                     } else {
-                        setMessage(verifyMsg, data.message || 'Numéro de ticket invalide.', false);
+                        setMessage(verifyMsg, data.message || 'Identifiant invalide.', false);
                     }
                 })
                 .catch(function () {

@@ -34,10 +34,11 @@ class CLP_Settings
             'helloasso_form_type' => 'Event',
             'helloasso_form_slug' => '',
             'helloasso_ticket_field' => 'item_id',
+            'allow_email' => '1',
             'dropbox_token' => '',
             'max_file_mb' => 25,
             'email_enabled' => '1',
-            'privacy_notice' => "En déposant une contribution, vous acceptez que votre numéro de ticket, le type de contribution, la date de dépôt et votre adresse e-mail soient traités par l'association éditrice de la revue Pourtant, pour l'organisation de l'appel à contributions (intérêt légitime). Ces données sont conservées jusqu'à la publication du numéro, puis supprimées. L'inscription via la billetterie HelloAsso relève de la politique de confidentialité de HelloAsso.",
+            'privacy_notice' => "En déposant une contribution, vous acceptez que votre identifiant HelloAsso (numéro de ticket ou adresse e-mail utilisée pour l'achat), le type de contribution, la date de dépôt et votre adresse e-mail soient traités par l'association éditrice de la revue Pourtant, pour l'organisation de l'appel à contributions (intérêt légitime). Ces données sont conservées jusqu'à la publication du numéro, puis supprimées. L'inscription via la billetterie HelloAsso relève de la politique de confidentialité de HelloAsso.",
         );
     }
 
@@ -165,6 +166,7 @@ class CLP_Settings
             $clean['max_file_mb'] = min(500, max(1, (int) $input['max_file_mb']));
         }
         $clean['email_enabled'] = !empty($input['email_enabled']) ? '1' : '';
+        $clean['allow_email'] = !empty($input['allow_email']) ? '1' : '';
         if (array_key_exists('privacy_notice', $input)) {
             $clean['privacy_notice'] = wp_kses_post((string) $input['privacy_notice']);
         }
@@ -247,6 +249,10 @@ class CLP_Settings
                                 <option value="custom_field" <?php selected($s['helloasso_ticket_field'], 'custom_field'); ?>>Champ personnalisé de la campagne</option>
                             </select>
                         </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Identification par e-mail</th>
+                        <td><label><input type="checkbox" name="<?php echo esc_attr($o); ?>[allow_email]" value="1" <?php checked($s['allow_email'], '1'); ?>> Les déposants peuvent aussi s'identifier avec l'adresse e-mail utilisée pour l'achat du billet HelloAsso (en plus du numéro de ticket)</label></td>
                     </tr>
                 </table>
 

@@ -26,9 +26,12 @@ image : les libellés affichés sur le formulaire sont modifiables (utile pour c
 | Type de formulaire | `Event` pour une billetterie d'événement (appel à contributions), sinon `PaymentForm`, etc. |
 | Slug de la billetterie | dans l'URL de la billetterie : `helloasso.com/associations/<org>/evenements/<slug>` |
 | Champ de vérification du ticket | `item_id` (n° d'article, défaut), `order_id` (n° de commande) ou `custom_field` (champ personnalisé du formulaire de vente) selon ce qui figure sur le billet |
+| Identification par e-mail | case cochée par défaut dans les réglages : le déposant peut saisir, à la place du n° de ticket, **l'adresse e-mail utilisée pour l'achat** sur HelloAsso |
 
-Seules les commandes **payées/autorisées** (`state = Authorized`) valident un ticket. L'e-mail du payeur
-est lu sur la commande pour le message de confirmation.
+Seules les commandes **payées/autorisées** (`state = Authorized`) valident un identifiant. L'e-mail du
+payeur est lu sur la commande (message de confirmation) et sert aussi à retrouver le ticket quand le
+déposant s'identifie par e-mail. Si plusieurs billets ont été achetés avec la même adresse, l'e-mail
+désigne le premier billet non encore déposé.
 
 ## 4. Dropbox
 

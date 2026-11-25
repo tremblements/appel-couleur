@@ -9,12 +9,17 @@ est rangé dans Dropbox après vérification du ticket.
 
 - **Fenêtre de dépôt** : dates d'ouverture et de clôture réglables (fuseau Europe/Paris). Hors période,
   le formulaire reste visible en lecture seule avec les dates affichées ; tout dépôt est refusé côté serveur.
-- **Vérification du ticket** : au moment du dépôt, le numéro de ticket est vérifié en temps réel via l'API
-  HelloAsso v5 (commande payée/autorisée de la billetterie de l'appel). La correspondance
-  numéro ↔ commande (et e-mail du payeur) est enregistrée localement après la première vérification pour
-  tracer les dépôts sans réinterroger l'API à chaque étape du formulaire.
-- **Un ticket = une contribution** : après un dépôt réussi, le même numéro ne peut déposer qu'une nouvelle
-  version de la même sous-catégorie, qui remplace le fichier précédent. Aucun second dépôt d'un autre type.
+- **Vérification du ticket** : au moment du dépôt, l'identifiant saisi — **numéro de ticket ou adresse
+  e-mail utilisée pour l'achat** (cahier des charges §4 : « ou éventuellement son adresse mail ») — est
+  vérifié en temps réel via l'API HelloAsso v5 (commande payée/autorisée de la billetterie de l'appel).
+  L'e-mail est recherché parmi les payeurs des commandes ; la clé interne reste le numéro de ticket
+  résolu. La correspondance ticket ↔ commande (et e-mail du payeur) est enregistrée localement après la
+  première vérification pour tracer les dépôts sans réinterroger l'API à chaque étape du formulaire.
+  L'identification par e-mail est désactivable dans les réglages (case « Identification par e-mail »).
+- **Un ticket = une contribution** : après un dépôt réussi, le même identifiant ne peut déposer qu'une
+  nouvelle version de la même sous-catégorie, qui remplace le fichier précédent. Aucun second dépôt d'un
+  autre type. (Si plusieurs billets ont été achetés avec la même adresse e-mail, l'e-mail désigne le
+  premier billet non encore déposé.)
 - **Sous-catégories** : fiction 500 mots, fiction 250 mots, haïku, poème long, poème court (textes :
   `.odt`, `.docx`, `.pdf`) et image (`.jpg`, `.jpeg`, `.png`, `.tif`, `.tiff`), poids maximum 25 Mo par défaut.
 - **Rangement Dropbox** : `Depots-<appel>/fiction/`, `Depots-<appel>/poesie/`, `Depots-<appel>/image/` ;

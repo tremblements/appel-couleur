@@ -16,11 +16,11 @@ class CLP_Upload
     public static function handle_verify(): void
     {
         check_ajax_referer('clp_verify', 'nonce');
-        $ticket = self::ticket_input();
+        $input = self::identifier_input();
 
         $window = CLP_Window::status();
         if ($window['status'] !== 'open') {
-            CLP_DB::log('verify', $ticket, 'refused', 'hors-periode', $window['status']);
+            CLP_DB::log('verify', $input, 'refused', 'hors-periode', $window['status']);
             wp_send_json(array(
                 'success' => false,
                 'reason' => 'hors-periode',
@@ -28,14 +28,25 @@ class CLP_Upload
             ), 403);
         }
 
-        if ($ticket === '') {
-            CLP_DB::log('verify', '', 'refused', 'ticket-manquant');
+        if ($input === '') {
+            CLP_DB::log('verify', '', 'refused', 'identifiant-manquant');
             wp_send_json(array(
                 'success' => false,
-                'reason' => 'ticket-manquant',
-                'message' => 'Merci de saisir votre numéro de ticket.',
+                'reason' => 'identifiant-manquant',
+                'message' => 'Merci de saisir votre numéro de ticket ou votre e-mail HelloAsso.',
             ), 400);
         }
+
+        $resolved = self::resolve_identifier($input);
+        if (!$resolved['ok']) {
+            CLP_DB::log('verify', $input, 'refused', $resolved['reason']);
+            wp_send_json(array(
+                'success' => false,
+                'reason' => $resolved['reason'],
+                'message' => self::verify_message($resolved['reason']),
+            ), 403);
+        }
+        $ticket = $resolved['ticket'];
 
         $row = CLP_DB::get_ticket($ticket);
         if (is_array($row) && $row['status'] === 'deposited') {
@@ -49,35 +60,19 @@ class CLP_Upload
             ));
         }
 
-        if (is_array($row) && $row['status'] === 'pending') {
+        if (!is_array($row)) {
+            CLP_DB::upsert_pending($ticket, $resolved['order_id'], $resolved['email']);
+            CLP_DB::log('verify', $ticket, 'success', 'api', 'commande ' . $resolved['order_id']);
+        } else {
             CLP_DB::log('verify', $ticket, 'success', 'correspondance-locale');
-            wp_send_json(array(
-                'success' => true,
-                'valid' => true,
-                'already_deposited' => false,
-                'subcategory' => '',
-                'email_found' => !empty($row['payer_email']),
-            ));
         }
 
-        $verification = CLP_HelloAsso::verify_ticket($ticket);
-        if (!$verification['valid']) {
-            CLP_DB::log('verify', $ticket, 'refused', $verification['reason']);
-            wp_send_json(array(
-                'success' => false,
-                'reason' => $verification['reason'],
-                'message' => self::verify_message($verification['reason']),
-            ), 403);
-        }
-
-        CLP_DB::upsert_pending($ticket, $verification['order_id'], $verification['email']);
-        CLP_DB::log('verify', $ticket, 'success', 'api', 'commande ' . $verification['order_id']);
         wp_send_json(array(
             'success' => true,
             'valid' => true,
             'already_deposited' => false,
             'subcategory' => '',
-            'email_found' => $verification['email'] !== '',
+            'email_found' => $resolved['email'] !== '',
         ));
     }
 
@@ -90,11 +85,11 @@ class CLP_Upload
 
     private static function process_deposit(): array
     {
-        $ticket = self::ticket_input();
+        $input = self::identifier_input();
 
         $window = CLP_Window::status();
         if ($window['status'] !== 'open') {
-            CLP_DB::log('deposit', $ticket, 'refused', 'hors-periode', $window['status']);
+            CLP_DB::log('deposit', $input, 'refused', 'hors-periode', $window['status']);
             return array(array(
                 'success' => false,
                 'reason' => 'hors-periode',
@@ -102,12 +97,12 @@ class CLP_Upload
             ), 403);
         }
 
-        if ($ticket === '') {
-            CLP_DB::log('deposit', '', 'refused', 'ticket-manquant');
+        if ($input === '') {
+            CLP_DB::log('deposit', '', 'refused', 'identifiant-manquant');
             return array(array(
                 'success' => false,
-                'reason' => 'ticket-manquant',
-                'message' => 'Merci de saisir votre numéro de ticket.',
+                'reason' => 'identifiant-manquant',
+                'message' => 'Merci de saisir votre numéro de ticket ou votre e-mail HelloAsso.',
             ), 400);
         }
 
@@ -115,7 +110,7 @@ class CLP_Upload
         $subcategory = is_string($raw_sub) ? sanitize_key($raw_sub) : '';
         $subs = CLP_Settings::subcategories();
         if (!isset($subs[$subcategory])) {
-            CLP_DB::log('deposit', $ticket, 'refused', 'categorie-invalide', $subcategory);
+            CLP_DB::log('deposit', $input, 'refused', 'categorie-invalide', $subcategory);
             return array(array(
                 'success' => false,
                 'reason' => 'categorie-invalide',
@@ -125,7 +120,7 @@ class CLP_Upload
         $type = $subs[$subcategory]['type'];
 
         if (empty($_FILES['file']) || !is_array($_FILES['file'])) {
-            CLP_DB::log('deposit', $ticket, 'refused', 'fichier-manquant');
+            CLP_DB::log('deposit', $input, 'refused', 'fichier-manquant');
             return array(array(
                 'success' => false,
                 'reason' => 'fichier-manquant',
@@ -134,7 +129,7 @@ class CLP_Upload
         }
         $file = $_FILES['file'];
         if (isset($file['error']) && is_array($file['error'])) {
-            CLP_DB::log('deposit', $ticket, 'refused', 'fichier-multiple');
+            CLP_DB::log('deposit', $input, 'refused', 'fichier-multiple');
             return array(array(
                 'success' => false,
                 'reason' => 'fichier-multiple',
@@ -148,7 +143,7 @@ class CLP_Upload
 
         $error_code = isset($file['error']) ? (int) $file['error'] : UPLOAD_ERR_NO_FILE;
         if ($error_code === UPLOAD_ERR_NO_FILE) {
-            CLP_DB::log('deposit', $ticket, 'refused', 'fichier-manquant');
+            CLP_DB::log('deposit', $input, 'refused', 'fichier-manquant');
             return array(array(
                 'success' => false,
                 'reason' => 'fichier-manquant',
@@ -156,7 +151,7 @@ class CLP_Upload
             ), 400);
         }
         if ($error_code === UPLOAD_ERR_INI_SIZE || $error_code === UPLOAD_ERR_FORM_SIZE) {
-            CLP_DB::log('deposit', $ticket, 'refused', 'fichier-trop-lourd', 'limite PHP ' . $error_code);
+            CLP_DB::log('deposit', $input, 'refused', 'fichier-trop-lourd', 'limite PHP ' . $error_code);
             return array(array(
                 'success' => false,
                 'reason' => 'fichier-trop-lourd',
@@ -164,7 +159,7 @@ class CLP_Upload
             ), 413);
         }
         if ($error_code !== UPLOAD_ERR_OK) {
-            CLP_DB::log('deposit', $ticket, 'refused', 'upload-erreur', 'code ' . $error_code);
+            CLP_DB::log('deposit', $input, 'refused', 'upload-erreur', 'code ' . $error_code);
             return array(array(
                 'success' => false,
                 'reason' => 'upload-erreur',
@@ -174,7 +169,7 @@ class CLP_Upload
 
         $ext = strtolower(pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION));
         if (!in_array($ext, CLP_Settings::allowed_extensions($type), true)) {
-            CLP_DB::log('deposit', $ticket, 'refused', 'format-non-accepte', $ext);
+            CLP_DB::log('deposit', $input, 'refused', 'format-non-accepte', $ext);
             return array(array(
                 'success' => false,
                 'reason' => 'format-non-accepte',
@@ -183,7 +178,7 @@ class CLP_Upload
         }
 
         if ((int) ($file['size'] ?? 0) > $max_bytes) {
-            CLP_DB::log('deposit', $ticket, 'refused', 'fichier-trop-lourd', (string) ($file['size'] ?? 0));
+            CLP_DB::log('deposit', $input, 'refused', 'fichier-trop-lourd', (string) ($file['size'] ?? 0));
             return array(array(
                 'success' => false,
                 'reason' => 'fichier-trop-lourd',
@@ -191,19 +186,30 @@ class CLP_Upload
             ), 413);
         }
 
-        $lock_key = 'clp_lock_' . md5($ticket);
+        $lock_key = 'clp_lock_' . md5($input);
         if (get_transient($lock_key) !== false) {
-            CLP_DB::log('deposit', $ticket, 'refused', 'double-soumission');
+            CLP_DB::log('deposit', $input, 'refused', 'double-soumission');
             return array(array(
                 'success' => false,
                 'reason' => 'double-soumission',
-                'message' => "Un dépôt pour ce numéro vient d'être enregistré : cette soumission est refusée.",
+                'message' => "Un dépôt pour cet identifiant vient d'être enregistré : cette soumission est refusée.",
             ), 409);
         }
         set_transient($lock_key, wp_generate_uuid4(), 90);
 
         $temp_file = '';
         try {
+            $resolved = self::resolve_identifier($input);
+            if (!$resolved['ok']) {
+                CLP_DB::log('deposit', $input, 'refused', $resolved['reason']);
+                return array(array(
+                    'success' => false,
+                    'reason' => $resolved['reason'],
+                    'message' => self::verify_message($resolved['reason']),
+                ), 403);
+            }
+            $ticket = $resolved['ticket'];
+
             $row = CLP_DB::get_ticket($ticket);
             $replacement = is_array($row) && $row['status'] === 'deposited';
 
@@ -212,22 +218,13 @@ class CLP_Upload
                 return array(array(
                     'success' => false,
                     'reason' => 'seconde-contribution',
-                    'message' => "Ce numéro de ticket a déjà une contribution déposée : seul le remplacement du même type de contribution est autorisé.",
+                    'message' => "Cet identifiant a déjà une contribution déposée : seul le remplacement du même type de contribution est autorisé.",
                 ), 409);
             }
 
             if (!$replacement) {
                 if (!is_array($row)) {
-                    $verification = CLP_HelloAsso::verify_ticket($ticket);
-                    if (!$verification['valid']) {
-                        CLP_DB::log('deposit', $ticket, 'refused', $verification['reason']);
-                        return array(array(
-                            'success' => false,
-                            'reason' => $verification['reason'],
-                            'message' => self::verify_message($verification['reason']),
-                        ), 403);
-                    }
-                    CLP_DB::upsert_pending($ticket, $verification['order_id'], $verification['email']);
+                    CLP_DB::upsert_pending($ticket, $resolved['order_id'], $resolved['email']);
                     $row = CLP_DB::get_ticket($ticket);
                 } else {
                     CLP_DB::log('deposit', $ticket, 'success', 'correspondance-locale', 'étape de dépôt');
@@ -237,6 +234,9 @@ class CLP_Upload
             $email = '';
             if (is_array($row) && !empty($row['payer_email'])) {
                 $email = (string) $row['payer_email'];
+            }
+            if ($email === '' && $resolved['email'] !== '') {
+                $email = $resolved['email'];
             }
             $raw_email = isset($_POST['email']) ? wp_unslash($_POST['email']) : '';
             $email_fallback = is_string($raw_email) ? sanitize_email($raw_email) : '';
@@ -252,7 +252,7 @@ class CLP_Upload
             ));
             if (!is_array($move) || empty($move['file'])) {
                 $err = is_array($move) && isset($move['error']) ? (string) $move['error'] : 'wp_handle_upload';
-                CLP_DB::log('deposit', $ticket, 'refused', 'enregistrement-local', $err);
+                CLP_DB::log('deposit', $input, 'refused', 'enregistrement-local', $err);
                 return array(array(
                     'success' => false,
                     'reason' => 'enregistrement-local',
@@ -264,11 +264,11 @@ class CLP_Upload
             $target = CLP_Dropbox::target_path($subcategory, $ext, $ticket);
             $upload = CLP_Dropbox::upload($temp_file, $target);
             if (!$upload['success']) {
-                CLP_DB::log('deposit', $ticket, 'refused', 'dropbox-indisponible', (string) $upload['error']);
+                CLP_DB::log('deposit', $input, 'refused', 'dropbox-indisponible', (string) $upload['error']);
                 return array(array(
                     'success' => false,
                     'reason' => 'dropbox-indisponible',
-                    'message' => "Le service de dépôt est indisponible pour le moment. Réessayez plus tard : votre ticket n'a pas été consommé.",
+                    'message' => "Le service de dépôt est indisponible pour le moment. Réessayez plus tard : votre billet n'a pas été consommé.",
                 ), 502);
             }
 
@@ -292,7 +292,7 @@ class CLP_Upload
                 'message' => 'Votre contribution a bien été déposée. Merci !',
             ), 200);
         } catch (Throwable $e) {
-            CLP_DB::log('deposit', $ticket, 'refused', 'erreur-interne', $e->getMessage());
+            CLP_DB::log('deposit', $input, 'refused', 'erreur-interne', $e->getMessage());
             return array(array(
                 'success' => false,
                 'reason' => 'erreur-interne',
@@ -306,6 +306,82 @@ class CLP_Upload
         }
     }
 
+    private static function resolve_identifier(string $input): array
+    {
+        $result = array('ok' => false, 'reason' => '', 'ticket' => '', 'order_id' => '', 'email' => '');
+        if ($input === '') {
+            $result['reason'] = 'identifiant-manquant';
+            return $result;
+        }
+
+        $cache_key = 'clp_res_' . md5(strtolower($input));
+        $cached = get_transient($cache_key);
+        if (is_array($cached) && !empty($cached['ok']) && !empty($cached['ticket'])) {
+            return $cached;
+        }
+
+        if (is_email($input)) {
+            $settings = CLP_Settings::get();
+            if (($settings['allow_email'] ?? '') !== '1') {
+                $result['reason'] = 'email-not-allowed';
+                return $result;
+            }
+            $candidates = CLP_HelloAsso::find_by_email(sanitize_email($input));
+            if ($candidates === array()) {
+                $result['reason'] = 'not-found';
+                return $result;
+            }
+            $chosen = $candidates[0];
+            foreach ($candidates as $candidate) {
+                if (!is_array($candidate) || empty($candidate['ticket'])) {
+                    continue;
+                }
+                $row = CLP_DB::get_ticket((string) $candidate['ticket']);
+                if (!is_array($row) || $row['status'] !== 'deposited') {
+                    $chosen = $candidate;
+                    break;
+                }
+            }
+            $result = array(
+                'ok' => true,
+                'reason' => '',
+                'ticket' => (string) $chosen['ticket'],
+                'order_id' => isset($chosen['order_id']) ? (string) $chosen['order_id'] : '',
+                'email' => sanitize_email($input),
+            );
+        } else {
+            $verification = CLP_HelloAsso::verify_ticket($input);
+            if (!$verification['valid']) {
+                $result['reason'] = $verification['reason'];
+                return $result;
+            }
+            $result = array(
+                'ok' => true,
+                'reason' => '',
+                'ticket' => $input,
+                'order_id' => $verification['order_id'],
+                'email' => $verification['email'],
+            );
+        }
+
+        set_transient($cache_key, $result, 30 * MINUTE_IN_SECONDS);
+        return $result;
+    }
+
+    private static function identifier_input(): string
+    {
+        $raw_input = isset($_POST['ticket']) ? wp_unslash($_POST['ticket']) : '';
+        if (!is_string($raw_input)) {
+            return '';
+        }
+        $raw = sanitize_text_field($raw_input);
+        if (is_email($raw)) {
+            return sanitize_email($raw);
+        }
+        $clean = preg_replace('/[^A-Za-z0-9_-]/', '', $raw);
+        return is_string($clean) ? substr($clean, 0, 64) : '';
+    }
+
     private static function send_confirmation(string $to): void
     {
         wp_mail(
@@ -313,14 +389,6 @@ class CLP_Upload
             'Votre contribution a bien été déposée',
             "Bonjour,\n\nVotre contribution a bien été déposée. Merci !\n\nL'équipe de la revue"
         );
-    }
-
-    private static function ticket_input(): string
-    {
-        $raw_input = isset($_POST['ticket']) ? wp_unslash($_POST['ticket']) : '';
-        $raw = is_string($raw_input) ? sanitize_text_field($raw_input) : '';
-        $clean = preg_replace('/[^A-Za-z0-9_-]/', '', $raw);
-        return is_string($clean) ? substr($clean, 0, 64) : '';
     }
 
     private static function window_message(array $window): string
@@ -337,14 +405,15 @@ class CLP_Upload
     private static function verify_message(string $reason): string
     {
         $messages = array(
-            'configuration-incomplete' => "La vérification des tickets n'est pas configurée. Contactez l'équipe de la revue.",
-            'auth-failed' => 'Impossible de vérifier votre ticket pour le moment. Réessayez plus tard.',
+            'configuration-incomplete' => "La vérification des billets n'est pas configurée. Contactez l'équipe de la revue.",
+            'auth-failed' => 'Impossible de vérifier votre identifiant pour le moment. Réessayez plus tard.',
             'network-error' => 'Impossible de joindre HelloAsso. Réessayez plus tard.',
-            'not-found' => "Numéro de ticket invalide. Vérifiez votre saisie ; si vous n'êtes pas encore inscrit à l'appel, inscrivez-vous via la billetterie HelloAsso.",
+            'email-not-allowed' => "L'identification par e-mail n'est pas activée : saisissez votre numéro de ticket.",
+            'not-found' => "Numéro de ticket ou e-mail introuvable. Vérifiez votre saisie ; si vous n'êtes pas encore inscrit à l'appel, inscrivez-vous via la billetterie HelloAsso.",
         );
         if (strncmp($reason, 'api-error-', 10) === 0) {
-            return 'Impossible de vérifier votre ticket pour le moment. Réessayez plus tard.';
+            return 'Impossible de vérifier votre identifiant pour le moment. Réessayez plus tard.';
         }
-        return isset($messages[$reason]) ? $messages[$reason] : 'Numéro de ticket invalide.';
+        return isset($messages[$reason]) ? $messages[$reason] : 'Identifiant invalide.';
     }
 }

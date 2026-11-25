@@ -5,8 +5,8 @@ if (!defined('ABSPATH')) {
 
 class CLP_HelloAsso
 {
-    const ORDER_STATES_OK = array('Authorized');
-    const ITEM_STATES_BAD = array('Canceled', 'Abandoned', 'Refused', 'Deleted');
+    const ORDER_STATE_OK = 'Authorized';
+    const ITEM_STATE_OK = 'Processed';
 
     public static function verify_ticket(string $ticket): array
     {
@@ -23,7 +23,7 @@ class CLP_HelloAsso
         }
         $mode = $settings['helloasso_ticket_field'];
         foreach ($fetched['orders'] as $order) {
-            if (!is_array($order) || !self::order_ok($order)) {
+            if (!is_array($order) || !self::order_paid($order)) {
                 continue;
             }
             if ($mode === 'order_id' && isset($order['id']) && self::ticket_matches($ticket, (string) $order['id'])) {
@@ -60,7 +60,7 @@ class CLP_HelloAsso
         $mode = $settings['helloasso_ticket_field'];
         $email_l = strtolower(trim($email));
         foreach ($fetched['orders'] as $order) {
-            if (!is_array($order) || !self::order_ok($order)) {
+            if (!is_array($order) || !self::order_paid($order)) {
                 continue;
             }
             $payer_email = self::payer_email($order);
@@ -128,9 +128,10 @@ class CLP_HelloAsso
         $out['total'] = count($fetched['orders']);
         $states = array();
         foreach ($fetched['orders'] as $order) {
-            $state = is_array($order) ? (string) ($order['state'] ?? '?') : '?';
-            $states[$state] = isset($states[$state]) ? $states[$state] + 1 : 1;
-            if (is_array($order) && self::order_ok($order)) {
+            $state = is_array($order) ? (string) ($order['state'] ?? '') : '';
+            $key = $state !== '' ? $state : '(sans état — liste light)';
+            $states[$key] = isset($states[$key]) ? $states[$key] + 1 : 1;
+            if (is_array($order) && self::order_paid($order)) {
                 $out['count']++;
             }
         }
@@ -155,15 +156,20 @@ class CLP_HelloAsso
             untrailingslashit($settings['helloasso_api_url']),
             rawurlencode($settings['helloasso_org_slug'])
         );
-        $page = 1;
+        $page = 0;
         $max_pages = 20;
         $retried = false;
-        while ($page <= $max_pages) {
-            $paged_url = add_query_arg(array(
+        $continuation = '';
+        while ($page < $max_pages) {
+            $page++;
+            $args = array(
                 'formTypes' => $form_type,
-                'pageIndex' => $page,
                 'pageSize' => 100,
-            ), $url);
+            );
+            if ($continuation !== '') {
+                $args['continuationToken'] = $continuation;
+            }
+            $paged_url = add_query_arg($args, $url);
             $response = wp_remote_get($paged_url, array(
                 'timeout' => 20,
                 'headers' => array(
@@ -182,6 +188,7 @@ class CLP_HelloAsso
                 if (is_wp_error($token)) {
                     break;
                 }
+                $page--;
                 continue;
             }
             if ($code !== 200) {
@@ -194,7 +201,7 @@ class CLP_HelloAsso
                     continue;
                 }
                 $forms[] = array(
-                    'slug' => isset($form['slug']) ? (string) $form['slug'] : '',
+                    'id' => isset($form['id']) ? (string) $form['id'] : '',
                     'title' => isset($form['title']) ? (string) $form['title'] : '',
                     'formType' => isset($form['formType']) ? (string) $form['formType'] : '',
                     'state' => isset($form['state']) ? (string) $form['state'] : '',
@@ -203,12 +210,12 @@ class CLP_HelloAsso
             if ($data === array()) {
                 break;
             }
-            if (is_array($body) && isset($body['pagination']['totalPages'])) {
-                if ($page >= (int) $body['pagination']['totalPages']) {
-                    break;
-                }
+            $continuation = is_array($body) && isset($body['pagination']['continuationToken']) && is_string($body['pagination']['continuationToken'])
+                ? $body['pagination']['continuationToken']
+                : '';
+            if ($continuation === '') {
+                break;
             }
-            $page++;
         }
         return $forms;
     }
@@ -240,16 +247,21 @@ class CLP_HelloAsso
             rawurlencode($settings['helloasso_form_slug'])
         );
 
-        $page = 1;
+        $page = 0;
         $max_pages = 50;
         $retried = false;
+        $continuation = '';
 
-        while ($page <= $max_pages) {
-            $paged_url = add_query_arg(array(
-                'pageIndex' => $page,
+        while ($page < $max_pages) {
+            $page++;
+            $args = array(
                 'pageSize' => 100,
                 'withDetails' => 'true',
-            ), $url);
+            );
+            if ($continuation !== '') {
+                $args['continuationToken'] = $continuation;
+            }
+            $paged_url = add_query_arg($args, $url);
 
             $response = wp_remote_get($paged_url, array(
                 'timeout' => 20,
@@ -273,6 +285,7 @@ class CLP_HelloAsso
                     $out['error'] = 'auth-failed';
                     return $out;
                 }
+                $page--;
                 continue;
             }
             if ($code !== 200) {
@@ -288,12 +301,12 @@ class CLP_HelloAsso
             if ($orders === array()) {
                 break;
             }
-            if (is_array($body) && isset($body['pagination']['totalPages'])) {
-                if ($page >= (int) $body['pagination']['totalPages']) {
-                    break;
-                }
+            $continuation = is_array($body) && isset($body['pagination']['continuationToken']) && is_string($body['pagination']['continuationToken'])
+                ? $body['pagination']['continuationToken']
+                : '';
+            if ($continuation === '') {
+                break;
             }
-            $page++;
         }
 
         return $out;
@@ -335,9 +348,34 @@ class CLP_HelloAsso
         return (string) $body['access_token'];
     }
 
-    private static function order_ok(array $order): bool
+    private static function order_paid(array $order): bool
     {
-        return in_array((string) ($order['state'] ?? ''), self::ORDER_STATES_OK, true);
+        $state = (string) ($order['state'] ?? '');
+        if ($state !== '' && $state !== self::ORDER_STATE_OK) {
+            return false;
+        }
+        $items = isset($order['items']) && is_array($order['items']) ? $order['items'] : array();
+        if ($items === array()) {
+            return $state === '' ? true : $state === self::ORDER_STATE_OK;
+        }
+        $has_state = false;
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $item_state = (string) ($item['state'] ?? '');
+            if ($item_state === '') {
+                continue;
+            }
+            $has_state = true;
+            if ($item_state === self::ITEM_STATE_OK) {
+                return true;
+            }
+        }
+        if (!$has_state) {
+            return true;
+        }
+        return false;
     }
 
     private static function items_of(array $order): array
@@ -348,7 +386,8 @@ class CLP_HelloAsso
             if (!is_array($item)) {
                 continue;
             }
-            if (in_array((string) ($item['state'] ?? ''), self::ITEM_STATES_BAD, true)) {
+            $state = (string) ($item['state'] ?? '');
+            if ($state !== '' && $state !== self::ITEM_STATE_OK) {
                 continue;
             }
             $good[] = $item;

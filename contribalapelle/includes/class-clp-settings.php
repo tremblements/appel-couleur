@@ -50,9 +50,9 @@ class CLP_Settings
             if ($forms !== array()) {
                 $lines = array();
                 foreach ($forms as $form) {
-                    $lines[] = $form['formType'] . ' « ' . $form['slug'] . ' » — ' . $form['title'] . ' [' . $form['state'] . ']';
+                    $lines[] = '« ' . $form['title'] . ' » [' . $form['state'] . ']';
                 }
-                $message .= ' Billetteries de type ' . $s['helloasso_form_type'] . ' de l\'organisation : ' . implode(' | ', $lines);
+                $message .= ' Billetteries de type ' . $s['helloasso_form_type'] . ' de l\'organisation (le slug se lit dans l\'URL publique de chaque billetterie) : ' . implode(' | ', $lines);
             }
         }
         wp_send_json(array(

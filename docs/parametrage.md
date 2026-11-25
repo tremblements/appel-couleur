@@ -21,7 +21,7 @@ image : les libellés affichés sur le formulaire sont modifiables (utile pour c
 | Champ | Où le trouver |
 | --- | --- |
 | URL de l'API | `https://api.helloasso.com/v5` (production) — sandbox : `https://api.helloasso-sandbox.com/v5` |
-| Client ID / Client Secret | [dev.helloasso.com](https://dev.helloasso.com) → votre application (OAuth 2.0, grant `client_credentials`) |
+| Client ID / Client Secret | C'est la **clé API du compte association** (paire OAuth 2.0). Sur **www.helloasso.com**, connecté avec le compte **administrateur de l'association `pourtant`** : **Mon compte → Intégrations et API** (boutons copier pour Client ID et Client Secret). [dev.helloasso.com](https://dev.helloasso.com) ne sert qu'aux applications « partenaires » multi-associations. La clé est scopée à l'organisation qui l'a émise. Pour tester : environnement sandbox helloasso-sandbox.com (sa propre clé) + URL d'API `https://api.helloasso-sandbox.com/v5` |
 | Slug de l'organisation | dev.helloasso.com → organisation, ou URL de la page publique HelloAsso. **Appel Purple N°13 en cours : `pourtant`** |
 | Type de formulaire | `Event` pour une billetterie d'événement (appel à contributions), sinon `PaymentForm`, etc. **Appel Purple : `Event`** |
 | Slug de la billetterie | dans l'URL publique de la billetterie : `helloasso.com/associations/<org>/evenements/<slug>` (bouton « Voir la page publique » dans le backoffice HelloAsso ; aucun ID numérique n'est nécessaire pour l'API v5). **Appel Purple : `participation-a-pourtant-13-purple`** |

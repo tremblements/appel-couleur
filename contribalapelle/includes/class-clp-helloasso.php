@@ -87,9 +87,34 @@ class CLP_HelloAsso
         return $candidates;
     }
 
+    public static function missing_config(): array
+    {
+        $s = CLP_Settings::get();
+        $missing = array();
+        if (empty($s['helloasso_client_id'])) {
+            $missing[] = 'Client ID';
+        }
+        if (empty($s['helloasso_client_secret'])) {
+            $missing[] = 'Client Secret';
+        }
+        if (empty($s['helloasso_org_slug'])) {
+            $missing[] = "Slug de l'organisation";
+        }
+        if (empty($s['helloasso_form_slug'])) {
+            $missing[] = 'Slug de la billetterie';
+        }
+        return $missing;
+    }
+
     public static function count_authorized_orders(): array
     {
-        $out = array('ok' => false, 'reason' => '', 'count' => 0);
+        $out = array('ok' => false, 'reason' => '', 'count' => 0, 'missing' => array());
+        $missing = self::missing_config();
+        if ($missing !== array()) {
+            $out['reason'] = 'configuration-incomplete';
+            $out['missing'] = $missing;
+            return $out;
+        }
         $settings = self::settings_ready();
         if (is_wp_error($settings)) {
             $out['reason'] = 'configuration-incomplete';

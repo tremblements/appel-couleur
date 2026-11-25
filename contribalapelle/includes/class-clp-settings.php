@@ -24,7 +24,12 @@ class CLP_Settings
         }
         $result = CLP_HelloAsso::count_authorized_orders();
         if (!$result['ok']) {
-            wp_send_json(array('success' => false, 'message' => 'Échec de la connexion : ' . self::ha_reason_message($result['reason'])));
+            $message = 'Échec de la connexion : ' . self::ha_reason_message($result['reason']);
+            if ($result['reason'] === 'configuration-incomplete' && !empty($result['missing'])) {
+                $message = 'Configuration incomplète — champs vides : ' . implode(', ', $result['missing'])
+                    . '. Saisissez-les ci-dessus puis cliquez sur « Enregistrer les modifications » en bas de page avant de tester.';
+            }
+            wp_send_json(array('success' => false, 'message' => $message));
         }
         $s = self::get();
         wp_send_json(array(
@@ -296,6 +301,7 @@ class CLP_Settings
                     <button type="button" class="button" id="clp-test-ha">Tester la connexion à la billetterie</button>
                     <span id="clp-test-ha-result" style="margin-left:0.5em;"></span>
                 </p>
+                <p class="description">Le test lit les réglages <strong>enregistrés</strong> : cliquez d'abord sur « Enregistrer les modifications » en bas de page.</p>
                 <script>
                 (function () {
                     var btn = document.getElementById('clp-test-ha');

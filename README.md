@@ -20,7 +20,8 @@ est rangé dans Dropbox après vérification du ticket.
   première vérification pour tracer les dépôts sans réinterroger l'API à chaque étape du formulaire.
   L'identification par e-mail est désactivable dans les réglages (case « Identification par e-mail »).
 - **Un ticket = une contribution** : après un dépôt réussi, le même identifiant ne peut déposer qu'une
-  nouvelle version de la même sous-catégorie, qui remplace le fichier précédent. Aucun second dépôt d'un
+  nouvelle version de la même sous-catégorie, qui remplace le fichier précédent — **après confirmation
+  explicite** de la personne (case à cocher, cahier V3 §9). Aucun second dépôt d'un
   autre type. (Si plusieurs billets ont été achetés avec la même adresse e-mail, l'e-mail désigne le
   premier billet non encore déposé.)
 - **Sous-catégories** : fiction 500 mots, fiction 250 mots, haïku, poème long, poème court (textes :
@@ -34,8 +35,11 @@ est rangé dans Dropbox après vérification du ticket.
   fois par ticket (stocké en base) : une nouvelle version déposée garde le même code.
   Le dépôt n'est réussi qu'après confirmation d'écriture côté Dropbox ; si Dropbox est indisponible,
   le dépôt est refusé et le ticket n'est pas consommé.
-- **Message de réussite** : court, sans rappel du type ni du numéro, envoyé par e-mail (adresse récupérée
-  sur la commande HelloAsso) ; repli à l'écran si l'e-mail est introuvable.
+- **Message de réussite** (cahier V3 §8) : affiché à l'écran **et** envoyé aussitôt par e-mail à l'adresse
+  d'inscription (lue sur la commande HelloAsso, ou saisie comme identifiant) : confirmation de réussite,
+  nom du fichier uploadé, nature de la contribution, nom anonymisé sous lequel le document est rangé dans
+  Dropbox, mention que le dépôt précédent a été effacé en cas de remplacement, et adresse e-mail utilisée
+  affichée à l'écran. Repli si e-mail introuvable : message à l'écran seul.
 - **Journalisation** : chaque opération (vérification/dépôt, réussi ou refusé, avec le motif) est enregistrée
   et consultable dans l'admin (menu **Contribalapelle**). Les données (ticket, type, horodatage, e-mail) sont
   supprimées après la publication du numéro de la revue.

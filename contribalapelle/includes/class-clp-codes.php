@@ -25,7 +25,7 @@ class CLP_Codes
     public static function generate(): array
     {
         $settings = CLP_Settings::get();
-        $count = max(10, min(5000, (int) $settings['codes_count']));
+        $count = max(10, min(50000, (int) $settings['codes_count']));
         $words = array();
         $path = self::words_file();
         if (is_readable($path)) {
@@ -57,6 +57,11 @@ class CLP_Codes
         if ($codes === array()) {
             return 'code';
         }
-        return (string) $codes[array_rand($codes)];
+        $used = CLP_DB::used_codes();
+        $available = array_values(array_diff($codes, $used));
+        if ($available === array()) {
+            $available = $codes;
+        }
+        return (string) $available[array_rand($available)];
     }
 }

@@ -131,6 +131,21 @@ class CLP_DB
         $wpdb->update(self::tickets_table(), $data, array('ticket' => $ticket));
     }
 
+    public static function used_codes(): array
+    {
+        global $wpdb;
+        $rows = $wpdb->get_results(
+            "SELECT human_code FROM " . self::tickets_table() . " WHERE human_code IS NOT NULL AND human_code <> ''",
+            ARRAY_A
+        );
+        if (!is_array($rows)) {
+            return array();
+        }
+        return array_values(array_map(function ($row) {
+            return (string) $row['human_code'];
+        }, $rows));
+    }
+
     public static function log(string $action, string $ticket, string $status, string $reason = '', string $detail = ''): void
     {
         global $wpdb;

@@ -10,7 +10,7 @@ Toutes les valeurs se saisissent dans **Réglages → Contribalapelle** (admin W
 | Nom de l'appel | — | Sert à nommer le dossier Dropbox : `Depots-<nom>/` avec sous-dossiers `fiction`, `poesie`, `image`. Ex. `appel-couleur`. |
 | Ouverture du dépôt | décision de l'équipe | Format `JJ/MM/AAAA HH:MM`, fuseau **Europe/Paris**. |
 | Clôture du dépôt | décision de l'équipe | Idem. Hors fenêtre, le formulaire est en lecture seule et tout dépôt est refusé. |
-| Taille de la liste de codes humains | 200 par défaut (10–5000) | Mots français de 6 lettres échantillonnés dans `contribalapelle/assets/mots-francais.json` (remplaçable par le `words.json` complet de an-array-of-french-words), puis bouton « Régénérer la liste de codes ». Nom des fichiers déposés : `date-numero_ticket-code_humain.ext`. Le code est tiré une fois par ticket. |
+| Taille de la liste de codes humains | 5000 par défaut (10–50 000) | Mots français de 6 lettres échantillonnés dans `contribalapelle/assets/mots-francais.json` (remplaçable par le `words.json` complet de an-array-of-french-words, ~44 600 mots de 6 lettres), puis bouton « Régénérer la liste de codes ». Tirage de préférence sans doublon avec les codes déjà attribués. Nom des fichiers déposés : `date-numero_ticket-code_humain.ext`. Le code est tiré une fois par ticket. |
 
 ## 2. Libellés des sous-catégories
 

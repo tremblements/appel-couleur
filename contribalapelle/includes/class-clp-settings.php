@@ -94,7 +94,7 @@ class CLP_Settings
             'appel_name' => 'appel',
             'window_open' => '',
             'window_close' => '',
-            'codes_count' => 200,
+            'codes_count' => 5000,
             'label_fiction_500' => 'Fiction — 500 mots',
             'label_fiction_250' => 'Fiction — 250 mots',
             'label_haiku' => 'Haïku (5-7-5)',
@@ -240,7 +240,7 @@ class CLP_Settings
             $clean['max_file_mb'] = min(500, max(1, (int) $input['max_file_mb']));
         }
         if (array_key_exists('codes_count', $input)) {
-            $clean['codes_count'] = min(5000, max(10, (int) $input['codes_count']));
+            $clean['codes_count'] = min(50000, max(10, (int) $input['codes_count']));
         }
         $clean['email_enabled'] = !empty($input['email_enabled']) ? '1' : '';
         $clean['allow_email'] = !empty($input['allow_email']) ? '1' : '';
@@ -305,8 +305,8 @@ class CLP_Settings
                     <tr>
                         <th scope="row"><label for="clp-codes-count">Taille de la liste de codes</label></th>
                         <td>
-                            <input type="number" min="10" max="5000" id="clp-codes-count" name="<?php echo esc_attr($o); ?>[codes_count]" value="<?php echo esc_attr((string) $s['codes_count']); ?>">
-                            <p class="description">Mots français de 6 lettres échantillonnés dans <code>assets/mots-francais.json</code> (déposé dans le plugin ; remplaçable par le <code>words.json</code> complet du dépôt an-array-of-french-words). Nom des fichiers déposés : <code>date-numero_ticket-code_humain.ext</code>.</p>
+                            <input type="number" min="10" max="50000" id="clp-codes-count" name="<?php echo esc_attr($o); ?>[codes_count]" value="<?php echo esc_attr((string) $s['codes_count']); ?>">
+                            <p class="description">Mots français de 6 lettres échantillonnés dans <code>assets/mots-francais.json</code> (déposé dans le plugin ; remplaçable par le <code>words.json</code> complet du dépôt an-array-of-french-words, ~44 600 mots de 6 lettres). Le tirage d'un code se fait de préférence <strong>sans doublon</strong> avec les codes déjà attribués. Nom des fichiers déposés : <code>date-numero_ticket-code_humain.ext</code>.</p>
                         </td>
                     </tr>
                     <tr>

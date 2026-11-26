@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Contribalapelle
  * Description: Fonction « Dépôt contribution » de la revue Pourtant : dépôt d'un texte, poème ou image par un contributeur inscrit à l'appel (ticket HelloAsso vérifié), rangé dans Dropbox.
- * Version: 1.1.5
+ * Version: 1.2.0
  * Requires PHP: 8.1
  * Author: Tremblements
  * Text Domain: contribalapelle
@@ -12,12 +12,13 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('CLP_VERSION', '1.1.5');
+define('CLP_VERSION', '1.2.0');
 define('CLP_PLUGIN_FILE', __FILE__);
 define('CLP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('CLP_PLUGIN_URL', plugin_dir_url(__FILE__));
 
 require_once CLP_PLUGIN_DIR . 'includes/class-clp-db.php';
+require_once CLP_PLUGIN_DIR . 'includes/class-clp-codes.php';
 require_once CLP_PLUGIN_DIR . 'includes/class-clp-settings.php';
 require_once CLP_PLUGIN_DIR . 'includes/class-clp-window.php';
 require_once CLP_PLUGIN_DIR . 'includes/class-clp-helloasso.php';

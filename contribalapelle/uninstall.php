@@ -10,4 +10,5 @@ $wpdb->query('DROP TABLE IF EXISTS ' . $wpdb->prefix . 'contribalapelle_logs');
 
 delete_option('clp_settings');
 delete_option('clp_db_version');
+delete_option('clp_human_codes');
 delete_transient('clp_ha_access_token');

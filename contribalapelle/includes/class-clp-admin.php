@@ -60,7 +60,7 @@ class CLP_Admin
             <h2>Tickets et contributions déposées</h2>
             <table class="widefat striped">
                 <thead>
-                    <tr><th>Ticket</th><th>Commande HelloAsso</th><th>E-mail</th><th>Sous-catégorie</th><th>Chemin Dropbox</th><th>Dépôt</th><th>Mise à jour</th></tr>
+                    <tr><th>Ticket</th><th>Commande HelloAsso</th><th>E-mail</th><th>Sous-catégorie</th><th>Code humain</th><th>Chemin Dropbox</th><th>Dépôt</th><th>Mise à jour</th></tr>
                 </thead>
                 <tbody>
                 <?php foreach ($tickets as $t) : ?>
@@ -69,13 +69,14 @@ class CLP_Admin
                         <td><?php echo esc_html((string) $t['order_id']); ?></td>
                         <td><?php echo esc_html((string) $t['payer_email']); ?></td>
                         <td><?php echo esc_html((string) $t['subcategory']); ?></td>
+                        <td><?php echo esc_html((string) ($t['human_code'] ?? '')); ?></td>
                         <td><?php echo esc_html((string) $t['dropbox_path']); ?></td>
                         <td><?php echo esc_html((string) $t['deposited_at']); ?></td>
                         <td><?php echo esc_html((string) $t['updated_at']); ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if ($tickets === array()) : ?>
-                    <tr><td colspan="7">Aucun ticket enregistré.</td></tr>
+                    <tr><td colspan="8">Aucun ticket enregistré.</td></tr>
                 <?php endif; ?>
                 </tbody>
             </table>

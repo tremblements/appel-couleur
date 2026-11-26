@@ -73,7 +73,7 @@ class CLP_Dropbox
         return $code >= 200 && $code < 300;
     }
 
-    public static function target_path(string $subcategory, string $ext, string $ticket): string
+    public static function target_path(string $subcategory, string $ext, string $ticket, string $code = ''): string
     {
         $subs = CLP_Settings::subcategories();
         $folder = isset($subs[$subcategory]) ? $subs[$subcategory]['folder'] : 'fiction';
@@ -82,7 +82,14 @@ class CLP_Dropbox
         if (!is_string($safe_ticket) || $safe_ticket === '') {
             $safe_ticket = 'ticket';
         }
-        $filename = $date . '-' . $safe_ticket . '.' . strtolower($ext);
+        $filename = $date . '-' . $safe_ticket;
+        if ($code !== '') {
+            $safe_code = preg_replace('/[^\p{L}\p{N}-]/u', '', $code);
+            if (is_string($safe_code) && $safe_code !== '') {
+                $filename .= '-' . $safe_code;
+            }
+        }
+        $filename .= '.' . strtolower($ext);
         return self::normalize_path(CLP_Settings::dropbox_root() . '/' . $folder . '/' . $filename);
     }
 

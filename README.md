@@ -26,7 +26,12 @@ est rangé dans Dropbox après vérification du ticket.
 - **Sous-catégories** : fiction 500 mots, fiction 250 mots, haïku, poème long, poème court (textes :
   `.odt`, `.docx`, `.pdf`) et image (`.jpg`, `.jpeg`, `.png`, `.tif`, `.tiff`), poids maximum 25 Mo par défaut.
 - **Rangement Dropbox** : `Depots-<appel>/fiction/`, `Depots-<appel>/poesie/`, `Depots-<appel>/image/` ;
-  nom de fichier anonymisé `<aammjj>-<n° de ticket>.<ext>` (date de dépôt, heure de Paris).
+  nom de fichier anonymisé `<aammjj>-<n° de ticket>-<code_humain>.<ext>` (date de dépôt, heure de Paris).
+  Le `code_humain` est un mot français de 6 lettres tiré dans une liste échantillonnée dans
+  `contribalapelle/assets/mots-francais.json` (ce fichier peut être remplacé par le `words.json` complet
+  du dépôt [an-array-of-french-words](https://github.com/words/an-array-of-french-words)) ; la taille de
+  la liste est réglable et la liste régénérable dans **Réglages → Contribalapelle**. Le code est tiré une
+  fois par ticket (stocké en base) : une nouvelle version déposée garde le même code.
   Le dépôt n'est réussi qu'après confirmation d'écriture côté Dropbox ; si Dropbox est indisponible,
   le dépôt est refusé et le ticket n'est pas consommé.
 - **Message de réussite** : court, sans rappel du type ni du numéro, envoyé par e-mail (adresse récupérée

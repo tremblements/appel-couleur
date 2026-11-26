@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) {
 
 class CLP_DB
 {
-    const DB_VERSION = '1';
+    const DB_VERSION = '2';
 
     public static function tickets_table(): string
     {
@@ -31,6 +31,7 @@ class CLP_DB
             order_id VARCHAR(64) NOT NULL DEFAULT '',
             payer_email VARCHAR(190) NOT NULL DEFAULT '',
             subcategory VARCHAR(32) NULL DEFAULT NULL,
+            human_code VARCHAR(16) NULL DEFAULT NULL,
             dropbox_path VARCHAR(512) NULL DEFAULT NULL,
             status VARCHAR(16) NOT NULL DEFAULT 'pending',
             deposited_at DATETIME NULL DEFAULT NULL,
@@ -54,8 +55,15 @@ class CLP_DB
 
     public static function maybe_upgrade(): void
     {
+        global $wpdb;
         if (get_option('clp_db_version') !== self::DB_VERSION) {
             self::activate();
+            $table = self::tickets_table();
+            $columns = $wpdb->get_results("SHOW COLUMNS FROM {$table} LIKE 'human_code'");
+            if ($columns === array()) {
+                $wpdb->query("ALTER TABLE {$table} ADD COLUMN human_code VARCHAR(16) NULL DEFAULT NULL AFTER subcategory");
+            }
+            update_option('clp_db_version', self::DB_VERSION);
         }
     }
 
@@ -100,7 +108,7 @@ class CLP_DB
         }
     }
 
-    public static function mark_deposited(string $ticket, string $subcategory, string $dropbox_path, string $email): void
+    public static function mark_deposited(string $ticket, string $subcategory, string $dropbox_path, string $email, string $human_code = ''): void
     {
         global $wpdb;
         $now = CLP_Window::now()->format('Y-m-d H:i:s');
@@ -108,6 +116,7 @@ class CLP_DB
         $data = array(
             'status' => 'deposited',
             'subcategory' => $subcategory,
+            'human_code' => $human_code,
             'dropbox_path' => $dropbox_path,
             'updated_at' => $now,
         );

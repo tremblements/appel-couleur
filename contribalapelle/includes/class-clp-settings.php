@@ -14,6 +14,20 @@ class CLP_Settings
         add_action('admin_menu', array(__CLASS__, 'add_menu'));
         add_action('admin_init', array(__CLASS__, 'register_settings'));
         add_action('wp_ajax_clp_admin_test_ha', array(__CLASS__, 'test_helloasso'));
+        add_action('wp_ajax_clp_admin_regen_codes', array(__CLASS__, 'regen_codes'));
+    }
+
+    public static function regen_codes(): void
+    {
+        check_ajax_referer('clp_admin_regen_codes', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_send_json(array('success' => false, 'message' => 'Accès refusé.'), 403);
+        }
+        $codes = CLP_Codes::generate();
+        wp_send_json(array(
+            'success' => true,
+            'message' => sprintf('%d codes humains générés (ex. : %s).', count($codes), implode(', ', array_slice($codes, 0, 8))),
+        ));
     }
 
     public static function test_helloasso(): void
@@ -80,6 +94,7 @@ class CLP_Settings
             'appel_name' => 'appel',
             'window_open' => '',
             'window_close' => '',
+            'codes_count' => 200,
             'label_fiction_500' => 'Fiction — 500 mots',
             'label_fiction_250' => 'Fiction — 250 mots',
             'label_haiku' => 'Haïku (5-7-5)',
@@ -224,6 +239,9 @@ class CLP_Settings
         if (array_key_exists('max_file_mb', $input)) {
             $clean['max_file_mb'] = min(500, max(1, (int) $input['max_file_mb']));
         }
+        if (array_key_exists('codes_count', $input)) {
+            $clean['codes_count'] = min(5000, max(10, (int) $input['codes_count']));
+        }
         $clean['email_enabled'] = !empty($input['email_enabled']) ? '1' : '';
         $clean['allow_email'] = !empty($input['allow_email']) ? '1' : '';
         if (array_key_exists('privacy_notice', $input)) {
@@ -280,6 +298,42 @@ class CLP_Settings
                         <td><input type="text" class="regular-text" id="clp-<?php echo esc_attr($key); ?>" name="<?php echo esc_attr($o); ?>[<?php echo esc_attr($label_key); ?>]" value="<?php echo esc_attr($s[$label_key]); ?>"></td>
                     </tr>
                     <?php endforeach; ?>
+                </table>
+
+                <h2>Codes humains d'anonymisation (nommage des fichiers)</h2>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><label for="clp-codes-count">Taille de la liste de codes</label></th>
+                        <td>
+                            <input type="number" min="10" max="5000" id="clp-codes-count" name="<?php echo esc_attr($o); ?>[codes_count]" value="<?php echo esc_attr((string) $s['codes_count']); ?>">
+                            <p class="description">Mots français de 6 lettres échantillonnés dans <code>assets/mots-francais.json</code> (déposé dans le plugin ; remplaçable par le <code>words.json</code> complet du dépôt an-array-of-french-words). Nom des fichiers déposés : <code>date-numero_ticket-code_humain.ext</code>.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Liste de codes</th>
+                        <td>
+                            <button type="button" class="button" id="clp-regen-codes">Régénérer la liste de codes</button>
+                            <span id="clp-regen-result" style="margin-left:0.5em;"></span>
+                            <p class="description">Actuellement <?php echo esc_html((string) count(CLP_Codes::list())); ?> code(s) en liste. Le test lit les réglages enregistrés : enregistrez d'abord avant de régénérer.</p>
+                            <script>
+                            (function () {
+                                var btn = document.getElementById('clp-regen-codes');
+                                var out = document.getElementById('clp-regen-result');
+                                if (!btn) { return; }
+                                btn.addEventListener('click', function () {
+                                    out.textContent = 'Génération…';
+                                    var fd = new FormData();
+                                    fd.append('action', 'clp_admin_regen_codes');
+                                    fd.append('nonce', <?php echo wp_json_encode(wp_create_nonce('clp_admin_regen_codes')); ?>);
+                                    fetch(<?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>, { method: 'POST', body: fd, credentials: 'same-origin' })
+                                        .then(function (r) { return r.json(); })
+                                        .then(function (data) { out.textContent = data.message || 'Erreur inconnue.'; })
+                                        .catch(function () { out.textContent = 'Erreur réseau.'; });
+                                });
+                            })();
+                            </script>
+                        </td>
+                    </tr>
                 </table>
 
                 <h2>HelloAsso</h2>

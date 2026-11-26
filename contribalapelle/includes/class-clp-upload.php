@@ -231,6 +231,14 @@ class CLP_Upload
                 }
             }
 
+            $human_code = '';
+            if (is_array($row) && !empty($row['human_code'])) {
+                $human_code = (string) $row['human_code'];
+            }
+            if ($human_code === '') {
+                $human_code = CLP_Codes::pick();
+            }
+
             $email = '';
             if (is_array($row) && !empty($row['payer_email'])) {
                 $email = (string) $row['payer_email'];
@@ -261,7 +269,7 @@ class CLP_Upload
             }
             $temp_file = (string) $move['file'];
 
-            $target = CLP_Dropbox::target_path($subcategory, $ext, $ticket);
+            $target = CLP_Dropbox::target_path($subcategory, $ext, $ticket, $human_code);
             $upload = CLP_Dropbox::upload($temp_file, $target);
             if (!$upload['success']) {
                 CLP_DB::log('deposit', $input, 'refused', 'dropbox-indisponible', (string) $upload['error']);
@@ -276,7 +284,7 @@ class CLP_Upload
                 CLP_Dropbox::delete((string) $row['dropbox_path']);
             }
 
-            CLP_DB::mark_deposited($ticket, $subcategory, $target, $email);
+            CLP_DB::mark_deposited($ticket, $subcategory, $target, $email, $human_code);
             CLP_DB::log('deposit', $ticket, 'success', 'depot', $target);
 
             if ($settings['email_enabled'] === '1') {

@@ -109,6 +109,7 @@ class CLP_Settings
             'helloasso_form_slug' => '',
             'helloasso_ticket_field' => 'item_id',
             'allow_email' => '1',
+            'test_ids' => '',
             'dropbox_token' => '',
             'max_file_mb' => 25,
             'email_enabled' => '1',
@@ -247,6 +248,9 @@ class CLP_Settings
         if (array_key_exists('privacy_notice', $input)) {
             $clean['privacy_notice'] = wp_kses_post((string) $input['privacy_notice']);
         }
+        if (array_key_exists('test_ids', $input) && is_string($input['test_ids'])) {
+            $clean['test_ids'] = sanitize_textarea_field($input['test_ids']);
+        }
         if (!in_array($clean['helloasso_ticket_field'], array('item_id', 'order_id', 'custom_field'), true)) {
             $clean['helloasso_ticket_field'] = 'item_id';
         }
@@ -366,6 +370,13 @@ class CLP_Settings
                     <tr>
                         <th scope="row">Identification par e-mail</th>
                         <td><label><input type="checkbox" name="<?php echo esc_attr($o); ?>[allow_email]" value="1" <?php checked($s['allow_email'], '1'); ?>> Les déposants peuvent aussi s'identifier avec l'adresse e-mail utilisée pour l'achat du billet HelloAsso (en plus du numéro de ticket)</label></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="clp-test-ids">Identifiants de test</label></th>
+                        <td>
+                            <textarea id="clp-test-ids" class="large-text" rows="3" name="<?php echo esc_attr($o); ?>[test_ids]"><?php echo esc_textarea($s['test_ids']); ?></textarea>
+                            <p class="description">Un n° de billet ou e-mail par ligne (ou séparés par virgule / point-virgule). Ces identifiants sont acceptés <strong>sans appeler l'API HelloAsso</strong> (commande fictive « TEST ») : pour retester le parcours de dépôt en recette. <strong>Laisser vide en production.</strong></p>
+                        </td>
                     </tr>
                 </table>
                 <p>

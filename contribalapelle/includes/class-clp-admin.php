@@ -8,6 +8,8 @@ class CLP_Admin
     public static function init(): void
     {
         add_action('admin_menu', array(__CLASS__, 'menu'));
+        add_action('admin_post_clp_admin_delete_ticket', array(__CLASS__, 'delete_ticket'));
+        add_action('admin_post_clp_admin_purge', array(__CLASS__, 'purge'));
     }
 
     public static function menu(): void
@@ -23,6 +25,36 @@ class CLP_Admin
         );
     }
 
+    public static function delete_ticket(): void
+    {
+        check_admin_referer('clp_admin_delete_ticket');
+        if (!current_user_can('manage_options')) {
+            wp_die('Accès refusé.');
+        }
+        $ticket = isset($_POST['ticket']) ? sanitize_text_field(wp_unslash($_POST['ticket'])) : '';
+        if ($ticket !== '') {
+            global $wpdb;
+            $wpdb->delete(CLP_DB::tickets_table(), array('ticket' => $ticket), array('%s'));
+            CLP_DB::log('admin', $ticket, 'success', 'suppression-ticket', 'manuelle (admin)');
+        }
+        wp_safe_redirect(admin_url('admin.php?page=contribalapelle-suivi'));
+        exit;
+    }
+
+    public static function purge(): void
+    {
+        check_admin_referer('clp_admin_purge');
+        if (!current_user_can('manage_options')) {
+            wp_die('Accès refusé.');
+        }
+        global $wpdb;
+        $wpdb->query('TRUNCATE TABLE ' . CLP_DB::tickets_table());
+        $wpdb->query('TRUNCATE TABLE ' . CLP_DB::logs_table());
+        CLP_DB::log('admin', '', 'success', 'purge-rgpd', 'toutes les données supprimées (tickets + journal)');
+        wp_safe_redirect(admin_url('admin.php?page=contribalapelle-suivi'));
+        exit;
+    }
+
     public static function render_page(): void
     {
         if (!current_user_can('manage_options')) {
@@ -34,6 +66,13 @@ class CLP_Admin
         <div class="wrap">
             <h1>Contribalapelle — Suivi des dépôts</h1>
             <p>Chaque tentative (vérification ou dépôt, réussie ou refusée) est journalisée. Les données sont supprimées après la publication du numéro de la revue.</p>
+            <p>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;">
+                    <input type="hidden" name="action" value="clp_admin_purge">
+                    <?php wp_nonce_field('clp_admin_purge'); ?>
+                    <button type="submit" class="button" onclick="return confirm('Supprimer TOUTES les données (tickets + journal) ? Opération RGPD, à faire après la publication du numéro.');">Purger toutes les données (RGPD)</button>
+                </form>
+            </p>
 
             <h2>Journal des opérations</h2>
             <table class="widefat striped">
@@ -60,7 +99,7 @@ class CLP_Admin
             <h2>Tickets et contributions déposées</h2>
             <table class="widefat striped">
                 <thead>
-                    <tr><th>Ticket</th><th>Commande HelloAsso</th><th>E-mail</th><th>Sous-catégorie</th><th>Code humain</th><th>Chemin Dropbox</th><th>Dépôt</th><th>Mise à jour</th></tr>
+                    <tr><th>Ticket</th><th>Commande HelloAsso</th><th>E-mail</th><th>Sous-catégorie</th><th>Code humain</th><th>Chemin Dropbox</th><th>Dépôt</th><th>Mise à jour</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                 <?php foreach ($tickets as $t) : ?>
@@ -73,10 +112,18 @@ class CLP_Admin
                         <td><?php echo esc_html((string) $t['dropbox_path']); ?></td>
                         <td><?php echo esc_html((string) $t['deposited_at']); ?></td>
                         <td><?php echo esc_html((string) $t['updated_at']); ?></td>
+                        <td>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" onsubmit="return confirm('Supprimer ce ticket de la base (le fichier Dropbox n\'est PAS supprimé) ?');">
+                                <input type="hidden" name="action" value="clp_admin_delete_ticket">
+                                <input type="hidden" name="ticket" value="<?php echo esc_attr((string) $t['ticket']); ?>">
+                                <?php wp_nonce_field('clp_admin_delete_ticket'); ?>
+                                <button type="submit" class="button button-small">Supprimer</button>
+                            </form>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if ($tickets === array()) : ?>
-                    <tr><td colspan="8">Aucun ticket enregistré.</td></tr>
+                    <tr><td colspan="9">Aucun ticket enregistré.</td></tr>
                 <?php endif; ?>
                 </tbody>
             </table>

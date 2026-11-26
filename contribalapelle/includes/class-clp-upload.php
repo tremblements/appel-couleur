@@ -62,7 +62,7 @@ class CLP_Upload
 
         if (!is_array($row)) {
             CLP_DB::upsert_pending($ticket, $resolved['order_id'], $resolved['email']);
-            CLP_DB::log('verify', $ticket, 'success', 'api', 'commande ' . $resolved['order_id']);
+            CLP_DB::log('verify', $ticket, 'success', !empty($resolved['test']) ? 'test' : 'api', 'commande ' . $resolved['order_id']);
         } else {
             CLP_DB::log('verify', $ticket, 'success', 'correspondance-locale');
         }
@@ -355,6 +355,21 @@ class CLP_Upload
             return $cached;
         }
 
+        $test_ids = self::test_identifiers();
+        if ($test_ids !== array() && in_array($input, $test_ids, true)) {
+            $is_email = is_email($input);
+            $result = array(
+                'ok' => true,
+                'reason' => '',
+                'ticket' => $is_email ? 'test' . substr(md5(strtolower($input)), 0, 10) : $input,
+                'order_id' => 'TEST',
+                'email' => $is_email ? sanitize_email($input) : '',
+                'test' => true,
+            );
+            set_transient($cache_key, $result, 30 * MINUTE_IN_SECONDS);
+            return $result;
+        }
+
         if (is_email($input)) {
             $settings = CLP_Settings::get();
             if (($settings['allow_email'] ?? '') !== '1') {
@@ -401,6 +416,24 @@ class CLP_Upload
 
         set_transient($cache_key, $result, 30 * MINUTE_IN_SECONDS);
         return $result;
+    }
+
+    private static function test_identifiers(): array
+    {
+        $settings = CLP_Settings::get();
+        $raw = isset($settings['test_ids']) ? (string) $settings['test_ids'] : '';
+        $parts = preg_split('/[\s,;]+/', $raw);
+        if (!is_array($parts)) {
+            return array();
+        }
+        $out = array();
+        foreach ($parts as $part) {
+            $part = trim($part);
+            if ($part !== '') {
+                $out[] = $part;
+            }
+        }
+        return $out;
     }
 
     private static function identifier_input(): string

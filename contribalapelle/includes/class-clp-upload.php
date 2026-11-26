@@ -222,6 +222,18 @@ class CLP_Upload
                 ), 409);
             }
 
+            if ($replacement) {
+                $raw_confirm = isset($_POST['confirm_replace']) ? wp_unslash($_POST['confirm_replace']) : '';
+                if ($raw_confirm !== '1') {
+                    CLP_DB::log('deposit', $ticket, 'refused', 'confirmation-remplacement-requise', $subcategory);
+                    return array(array(
+                        'success' => false,
+                        'reason' => 'confirmation-remplacement-requise',
+                        'message' => "Vous avez déjà déposé une contribution avec ce billet : cochez la case de confirmation pour effacer la précédente et la remplacer par ce nouveau fichier.",
+                    ), 409);
+                }
+            }
+
             if (!$replacement) {
                 if (!is_array($row)) {
                     CLP_DB::upsert_pending($ticket, $resolved['order_id'], $resolved['email']);
@@ -287,9 +299,16 @@ class CLP_Upload
             CLP_DB::mark_deposited($ticket, $subcategory, $target, $email, $human_code);
             CLP_DB::log('deposit', $ticket, 'success', 'depot', $target);
 
+            $email_sent = false;
             if ($settings['email_enabled'] === '1') {
                 if ($email !== '') {
-                    self::send_confirmation($email);
+                    $email_sent = self::send_confirmation(
+                        $email,
+                        (string) ($file['name'] ?? ''),
+                        CLP_Settings::subcategory_label($subcategory),
+                        basename($target),
+                        $replacement
+                    );
                 } else {
                     CLP_DB::log('deposit', $ticket, 'success', 'email-introuvable', "message de réussite affiché à l'écran");
                 }
@@ -298,9 +317,14 @@ class CLP_Upload
             return array(array(
                 'success' => true,
                 'message' => 'Votre contribution a bien été déposée. Merci !',
+                'uploaded_name' => (string) ($file['name'] ?? ''),
+                'subcategory_label' => CLP_Settings::subcategory_label($subcategory),
                 'filename' => basename($target),
                 'code' => $human_code,
                 'size' => size_format(max(0, (int) ($file['size'] ?? 0))),
+                'replaced' => $replacement,
+                'email' => $email,
+                'email_sent' => $email_sent,
             ), 200);
         } catch (Throwable $e) {
             CLP_DB::log('deposit', $input, 'refused', 'erreur-interne', $e->getMessage());
@@ -393,13 +417,23 @@ class CLP_Upload
         return is_string($clean) ? substr($clean, 0, 64) : '';
     }
 
-    private static function send_confirmation(string $to): void
+    private static function send_confirmation(string $to, string $uploaded_name, string $subcategory_label, string $anon_name, bool $replaced): bool
     {
-        wp_mail(
-            $to,
-            'Votre contribution a bien été déposée',
-            "Bonjour,\n\nVotre contribution a bien été déposée. Merci !\n\nL'équipe de la revue"
+        $lines = array(
+            'Bonjour,',
+            '',
+            'Votre contribution a bien été déposée. Merci !',
+            '',
+            'Document déposé : ' . $uploaded_name,
+            'Nature de la contribution : ' . $subcategory_label,
+            'Enregistré dans notre espace sous le nom anonymisé : ' . $anon_name,
         );
+        if ($replaced) {
+            $lines[] = 'Ce dépôt remplace votre contribution précédente, qui a été effacée.';
+        }
+        $lines[] = '';
+        $lines[] = "L'équipe de la revue";
+        return (bool) wp_mail($to, 'Votre contribution a bien été déposée', implode("\n", $lines));
     }
 
     private static function window_message(array $window): string

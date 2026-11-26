@@ -20,7 +20,11 @@
         var fileInput = document.getElementById('clp-file');
         var fileHint = document.getElementById('clp-file-hint');
         var depositMsg = document.getElementById('clp-deposit-message');
+        var depositDetail = document.getElementById('clp-deposit-detail');
+        var confirmWrap = document.getElementById('clp-confirm-wrap');
+        var confirmBox = document.getElementById('clp-confirm-replace');
         var lockedSubcategory = '';
+        var alreadyDeposited = false;
 
         if (toggle) {
             toggle.addEventListener('click', function () {
@@ -87,10 +91,14 @@
                 .then(function (res) {
                     var data = res.data || {};
                     if (data.success && data.valid) {
+                        alreadyDeposited = !!data.already_deposited;
                         if (data.already_deposited && data.subcategory) {
                             lockedSubcategory = data.subcategory;
                         }
                         fillSubcategories();
+                        if (confirmWrap) {
+                            confirmWrap.classList.toggle('clp-hidden', !alreadyDeposited);
+                        }
                         setMessage(verifyMsg, 'Identifiant vérifié.', true);
                         stepCat.classList.remove('clp-hidden');
                     } else {
@@ -106,8 +114,6 @@
             stepFile.classList.remove('clp-hidden');
         });
 
-        var depositDetail = document.getElementById('clp-deposit-detail');
-
         form.addEventListener('submit', function (ev) {
             ev.preventDefault();
             setMessage(depositMsg, '', true);
@@ -122,6 +128,7 @@
             fd.append('ticket', ticketInput.value);
             fd.append('email', emailInput.value);
             fd.append('subcategory', subSelect.value);
+            fd.append('confirm_replace', alreadyDeposited && confirmBox && confirmBox.checked ? '1' : '0');
             fd.append('file', fileInput.files[0]);
             var submitBtn = document.getElementById('clp-submit');
             submitBtn.disabled = true;
@@ -131,8 +138,26 @@
                     var data = res.data || {};
                     if (data.success) {
                         setMessage(depositMsg, data.message || 'Votre contribution a bien été déposée. Merci !', true);
-                        if (depositDetail && data.filename) {
-                            depositDetail.textContent = 'Déposé sous le nom anonymisé : ' + data.filename + (data.size ? ' — ' + data.size : '');
+                        if (depositDetail) {
+                            var lines = [];
+                            if (data.uploaded_name) {
+                                lines.push('Document déposé : ' + data.uploaded_name + (data.size ? ' (' + data.size + ')' : ''));
+                            }
+                            if (data.subcategory_label) {
+                                lines.push('Nature de la contribution : ' + data.subcategory_label);
+                            }
+                            if (data.filename) {
+                                lines.push('Nom anonymisé dans notre espace : ' + data.filename);
+                            }
+                            if (data.replaced) {
+                                lines.push('Ce dépôt remplace votre contribution précédente, qui a été effacée.');
+                            }
+                            if (data.email_sent && data.email) {
+                                lines.push('Un e-mail récapitulatif vient de vous être envoyé à ' + data.email + '.');
+                            } else if (!data.email_sent) {
+                                lines.push("Aucun e-mail de confirmation n'a pu être envoyé (adresse e-mail introuvable).");
+                            }
+                            depositDetail.textContent = lines.join('\n');
                         }
                     } else {
                         setMessage(depositMsg, data.message || 'Le dépôt a été refusé.', false);

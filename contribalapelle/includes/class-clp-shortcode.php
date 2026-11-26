@@ -109,6 +109,7 @@ class CLP_Shortcode
                     <p class="clp-hint" id="clp-file-hint"></p>
                     <button type="submit" class="clp-btn clp-submit" id="clp-submit"<?php echo $disabled; ?>>Valider le dépôt</button>
                     <p class="clp-message" id="clp-deposit-message" aria-live="polite"></p>
+                    <p class="clp-message clp-detail" id="clp-deposit-detail" aria-live="polite"></p>
                 </div>
 
                 <p class="clp-privacy"><?php echo wp_kses_post($settings['privacy_notice']); ?></p>

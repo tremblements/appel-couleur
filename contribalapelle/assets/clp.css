@@ -81,6 +81,11 @@
     color: #b3261e;
 }
 
+.clp-detail {
+    font-size: 0.85rem;
+    color: #444;
+}
+
 .clp-privacy {
     font-size: 0.8rem;
     color: #555;

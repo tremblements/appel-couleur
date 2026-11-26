@@ -298,6 +298,9 @@ class CLP_Upload
             return array(array(
                 'success' => true,
                 'message' => 'Votre contribution a bien été déposée. Merci !',
+                'filename' => basename($target),
+                'code' => $human_code,
+                'size' => size_format(max(0, (int) ($file['size'] ?? 0))),
             ), 200);
         } catch (Throwable $e) {
             CLP_DB::log('deposit', $input, 'refused', 'erreur-interne', $e->getMessage());

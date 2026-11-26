@@ -106,9 +106,12 @@
             stepFile.classList.remove('clp-hidden');
         });
 
+        var depositDetail = document.getElementById('clp-deposit-detail');
+
         form.addEventListener('submit', function (ev) {
             ev.preventDefault();
             setMessage(depositMsg, '', true);
+            if (depositDetail) { depositDetail.textContent = ''; }
             if (!fileInput.files || fileInput.files.length === 0) {
                 setMessage(depositMsg, 'Aucun fichier sélectionné.', false);
                 return;
@@ -128,6 +131,9 @@
                     var data = res.data || {};
                     if (data.success) {
                         setMessage(depositMsg, data.message || 'Votre contribution a bien été déposée. Merci !', true);
+                        if (depositDetail && data.filename) {
+                            depositDetail.textContent = 'Déposé sous le nom anonymisé : ' + data.filename + (data.size ? ' — ' + data.size : '');
+                        }
                     } else {
                         setMessage(depositMsg, data.message || 'Le dépôt a été refusé.', false);
                     }

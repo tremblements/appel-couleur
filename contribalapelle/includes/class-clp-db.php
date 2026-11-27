@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) {
 
 class CLP_DB
 {
-    const DB_VERSION = '2';
+    const DB_VERSION = '3';
 
     public static function tickets_table(): string
     {
@@ -32,6 +32,7 @@ class CLP_DB
             payer_email VARCHAR(190) NOT NULL DEFAULT '',
             subcategory VARCHAR(32) NULL DEFAULT NULL,
             human_code VARCHAR(16) NULL DEFAULT NULL,
+            preselected TINYINT(1) NOT NULL DEFAULT 0,
             dropbox_path VARCHAR(512) NULL DEFAULT NULL,
             status VARCHAR(16) NOT NULL DEFAULT 'pending',
             deposited_at DATETIME NULL DEFAULT NULL,
@@ -62,6 +63,10 @@ class CLP_DB
             $columns = $wpdb->get_results("SHOW COLUMNS FROM {$table} LIKE 'human_code'");
             if ($columns === array()) {
                 $wpdb->query("ALTER TABLE {$table} ADD COLUMN human_code VARCHAR(16) NULL DEFAULT NULL AFTER subcategory");
+            }
+            $columns = $wpdb->get_results("SHOW COLUMNS FROM {$table} LIKE 'preselected'");
+            if ($columns === array()) {
+                $wpdb->query("ALTER TABLE {$table} ADD COLUMN preselected TINYINT(1) NOT NULL DEFAULT 0 AFTER human_code");
             }
             update_option('clp_db_version', self::DB_VERSION);
         }
@@ -129,6 +134,30 @@ class CLP_DB
             $data['deposited_at'] = $now;
         }
         $wpdb->update(self::tickets_table(), $data, array('ticket' => $ticket));
+    }
+
+    public static function count_deposits(): int
+    {
+        global $wpdb;
+        $n = $wpdb->get_var("SELECT COUNT(*) FROM " . self::tickets_table() . " WHERE status = 'deposited'");
+        return is_numeric($n) ? (int) $n : 0;
+    }
+
+    public static function set_preselected(string $ticket, int $value): void
+    {
+        global $wpdb;
+        $wpdb->update(self::tickets_table(), array('preselected' => $value ? 1 : 0), array('ticket' => $ticket));
+    }
+
+    public static function preselected_list(): array
+    {
+        global $wpdb;
+        $rows = $wpdb->get_results(
+            "SELECT human_code, subcategory, deposited_at FROM " . self::tickets_table()
+            . " WHERE preselected = 1 AND status = 'deposited' ORDER BY deposited_at ASC",
+            ARRAY_A
+        );
+        return is_array($rows) ? $rows : array();
     }
 
     public static function used_codes(): array

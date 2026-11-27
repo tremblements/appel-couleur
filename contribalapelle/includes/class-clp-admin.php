@@ -10,6 +10,23 @@ class CLP_Admin
         add_action('admin_menu', array(__CLASS__, 'menu'));
         add_action('admin_post_clp_admin_delete_ticket', array(__CLASS__, 'delete_ticket'));
         add_action('admin_post_clp_admin_purge', array(__CLASS__, 'purge'));
+        add_action('admin_post_clp_admin_toggle_preselected', array(__CLASS__, 'toggle_preselected'));
+    }
+
+    public static function toggle_preselected(): void
+    {
+        check_admin_referer('clp_admin_toggle_preselected');
+        if (!current_user_can('manage_options')) {
+            wp_die('Accès refusé.');
+        }
+        $ticket = isset($_POST['ticket']) ? sanitize_text_field(wp_unslash($_POST['ticket'])) : '';
+        $value = !empty($_POST['preselected']) ? 1 : 0;
+        if ($ticket !== '') {
+            CLP_DB::set_preselected($ticket, $value);
+            CLP_DB::log('admin', $ticket, 'success', 'preselection', $value ? 'ajoutée' : 'retirée');
+        }
+        wp_safe_redirect(admin_url('admin.php?page=contribalapelle-suivi'));
+        exit;
     }
 
     public static function menu(): void
@@ -99,7 +116,7 @@ class CLP_Admin
             <h2>Tickets et contributions déposées</h2>
             <table class="widefat striped">
                 <thead>
-                    <tr><th>Ticket</th><th>Commande HelloAsso</th><th>E-mail</th><th>Sous-catégorie</th><th>Code humain</th><th>Chemin Dropbox</th><th>Dépôt</th><th>Mise à jour</th><th>Actions</th></tr>
+                    <tr><th>Ticket</th><th>Commande HelloAsso</th><th>E-mail</th><th>Sous-catégorie</th><th>Code humain</th><th>Présélection</th><th>Chemin Dropbox</th><th>Dépôt</th><th>Mise à jour</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                 <?php foreach ($tickets as $t) : ?>
@@ -109,6 +126,14 @@ class CLP_Admin
                         <td><?php echo esc_html((string) $t['payer_email']); ?></td>
                         <td><?php echo esc_html((string) $t['subcategory']); ?></td>
                         <td><?php echo esc_html((string) ($t['human_code'] ?? '')); ?></td>
+                        <td>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                                <input type="hidden" name="action" value="clp_admin_toggle_preselected">
+                                <input type="hidden" name="ticket" value="<?php echo esc_attr((string) $t['ticket']); ?>">
+                                <?php wp_nonce_field('clp_admin_toggle_preselected'); ?>
+                                <input type="checkbox" name="preselected" value="1" <?php checked(!empty($t['preselected'])); ?> onchange="this.form.submit()" title="Cocher = contribution présélectionnée (visible via [clp_preselection])">
+                            </form>
+                        </td>
                         <td><?php echo esc_html((string) $t['dropbox_path']); ?></td>
                         <td><?php echo esc_html((string) $t['deposited_at']); ?></td>
                         <td><?php echo esc_html((string) $t['updated_at']); ?></td>
@@ -123,7 +148,7 @@ class CLP_Admin
                     </tr>
                 <?php endforeach; ?>
                 <?php if ($tickets === array()) : ?>
-                    <tr><td colspan="9">Aucun ticket enregistré.</td></tr>
+                    <tr><td colspan="10">Aucun ticket enregistré.</td></tr>
                 <?php endif; ?>
                 </tbody>
             </table>

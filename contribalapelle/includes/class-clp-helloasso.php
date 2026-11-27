@@ -140,6 +140,93 @@ class CLP_HelloAsso
         return $out;
     }
 
+    public static function count_items_cached(): int
+    {
+        $cached = get_transient('clp_ha_items_count');
+        if (is_string($cached) || is_int($cached)) {
+            return (int) $cached;
+        }
+        $count = self::count_items();
+        set_transient('clp_ha_items_count', (string) $count, 300);
+        return $count;
+    }
+
+    public static function count_items(): int
+    {
+        $settings = self::settings_ready();
+        if (is_wp_error($settings)) {
+            return 0;
+        }
+        $token = self::get_access_token();
+        if (is_wp_error($token)) {
+            return 0;
+        }
+        $url = sprintf(
+            '%s/organizations/%s/forms/%s/%s/items',
+            untrailingslashit($settings['helloasso_api_url']),
+            rawurlencode($settings['helloasso_org_slug']),
+            rawurlencode($settings['helloasso_form_type']),
+            rawurlencode($settings['helloasso_form_slug'])
+        );
+        $count = 0;
+        $page = 0;
+        $max_pages = 100;
+        $retried = false;
+        $continuation = '';
+        while ($page < $max_pages) {
+            $page++;
+            $args = array('pageSize' => 100);
+            if ($continuation !== '') {
+                $args['continuationToken'] = $continuation;
+            }
+            $response = wp_remote_get(add_query_arg($args, $url), array(
+                'timeout' => 20,
+                'headers' => array(
+                    'Authorization' => 'Bearer ' . $token,
+                    'Accept' => 'application/json',
+                ),
+            ));
+            if (is_wp_error($response)) {
+                break;
+            }
+            $code = wp_remote_retrieve_response_code($response);
+            if ($code === 401 && !$retried) {
+                $retried = true;
+                delete_transient('clp_ha_access_token');
+                $token = self::get_access_token();
+                if (is_wp_error($token)) {
+                    break;
+                }
+                $page--;
+                continue;
+            }
+            if ($code !== 200) {
+                break;
+            }
+            $body = json_decode(wp_remote_retrieve_body($response), true);
+            $data = is_array($body) && isset($body['data']) && is_array($body['data']) ? $body['data'] : array();
+            foreach ($data as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+                $state = (string) ($item['state'] ?? '');
+                if ($state === '' || $state === self::ITEM_STATE_OK) {
+                    $count++;
+                }
+            }
+            if ($data === array()) {
+                break;
+            }
+            $continuation = is_array($body) && isset($body['pagination']['continuationToken']) && is_string($body['pagination']['continuationToken'])
+                ? $body['pagination']['continuationToken']
+                : '';
+            if ($continuation === '') {
+                break;
+            }
+        }
+        return $count;
+    }
+
     public static function list_forms(string $form_type): array
     {
         $forms = array();

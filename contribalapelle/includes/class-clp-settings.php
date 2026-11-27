@@ -95,6 +95,15 @@ class CLP_Settings
             'window_open' => '',
             'window_close' => '',
             'codes_count' => 5000,
+            'show_progress' => '1',
+            'cat_labels' => array(
+                'fiction_500' => 'fiction_500',
+                'fiction_250' => 'fiction_250',
+                'haiku' => 'haiku',
+                'poeme_long' => 'poeme_long',
+                'poeme_court' => 'poeme_court',
+                'image' => 'image',
+            ),
             'label_fiction_500' => 'Fiction — 500 mots',
             'label_fiction_250' => 'Fiction — 250 mots',
             'label_haiku' => 'Haïku (5-7-5)',
@@ -148,6 +157,15 @@ class CLP_Settings
             'poeme_court' => 'label_poeme_court',
             'image' => 'label_image',
         );
+    }
+
+    public static function cat_label(string $key): string
+    {
+        $settings = self::get();
+        if (isset($settings['cat_labels'][$key]) && $settings['cat_labels'][$key] !== '') {
+            return (string) $settings['cat_labels'][$key];
+        }
+        return $key;
     }
 
     public static function subcategory_label(string $key): string
@@ -245,6 +263,14 @@ class CLP_Settings
         }
         $clean['email_enabled'] = !empty($input['email_enabled']) ? '1' : '';
         $clean['allow_email'] = !empty($input['allow_email']) ? '1' : '';
+        $clean['show_progress'] = !empty($input['show_progress']) ? '1' : '';
+        if (isset($input['cat_labels']) && is_array($input['cat_labels'])) {
+            foreach (self::subcategories() as $key => $def) {
+                $clean['cat_labels'][$key] = isset($input['cat_labels'][$key]) && is_string($input['cat_labels'][$key])
+                    ? sanitize_text_field($input['cat_labels'][$key])
+                    : $key;
+            }
+        }
         if (array_key_exists('privacy_notice', $input)) {
             $clean['privacy_notice'] = wp_kses_post((string) $input['privacy_notice']);
         }
@@ -292,6 +318,22 @@ class CLP_Settings
                         <th scope="row"><label for="clp-close">Clôture du dépôt</label></th>
                         <td><input type="text" class="regular-text" id="clp-close" placeholder="JJ/MM/AAAA HH:MM" name="<?php echo esc_attr($o); ?>[window_close]" value="<?php echo esc_attr($s['window_close']); ?>"></td>
                     </tr>
+                    <tr>
+                        <th scope="row">Barre de progression</th>
+                        <td><label><input type="checkbox" name="<?php echo esc_attr($o); ?>[show_progress]" value="1" <?php checked($s['show_progress'], '1'); ?>> Afficher la barre de progression des dépôts sur la page (nombre de dépôts / nombre de billets dans la billetterie HelloAsso)</label></td>
+                    </tr>
+                </table>
+
+                <h2>Catégories affichées (liste des présélections)</h2>
+                <table class="form-table">
+                    <?php foreach (self::subcategories() as $key => $def) : ?>
+                    <tr>
+                        <th scope="row"><label for="clp-cat-<?php echo esc_attr($key); ?>"><?php echo esc_html($key); ?></label></th>
+                        <td><input type="text" class="regular-text" id="clp-cat-<?php echo esc_attr($key); ?>" name="<?php echo esc_attr($o); ?>[cat_labels][<?php echo esc_attr($key); ?>]" value="<?php echo esc_attr($s['cat_labels'][$key] ?? $key); ?>">
+                            <p class="description">Affichée dans le microcode <code>[clp_preselection]</code> à la place du code de sous-catégorie.</p>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
                 </table>
 
                 <h2>Libellés des sous-catégories</h2>

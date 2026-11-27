@@ -80,6 +80,41 @@
             });
         });
 
+        var checkToggle = document.getElementById('clp-check-toggle');
+        var checkBox = document.getElementById('clp-check');
+        var checkEmail = document.getElementById('clp-check-email');
+        var checkBtn = document.getElementById('clp-check-btn');
+        var checkMsg = document.getElementById('clp-check-message');
+
+        if (checkToggle) {
+            checkToggle.addEventListener('click', function () {
+                checkBox.classList.toggle('clp-hidden');
+            });
+        }
+
+        if (checkBtn) {
+            checkBtn.addEventListener('click', function () {
+                if (checkMsg) { checkMsg.textContent = ''; checkMsg.className = 'clp-message'; }
+                var fd = new FormData();
+                fd.append('action', 'clp_check_deposit');
+                fd.append('nonce', CLP_DATA.nonce_check);
+                fd.append('email', checkEmail.value);
+                fetch(CLP_DATA.ajax_url, { method: 'POST', body: fd, credentials: 'same-origin' })
+                    .then(function (r) { return r.json().then(function (data) { return { status: r.status, data: data }; }); })
+                    .then(function (res) {
+                        var data = res.data || {};
+                        if (checkMsg) {
+                            checkMsg.textContent = data.message || (data.success ? 'Un e-mail vient de vous être envoyé.' : "Échec de l'envoi.");
+                            checkMsg.classList.toggle('clp-ok', !!data.success);
+                            checkMsg.classList.toggle('clp-err', !data.success);
+                        }
+                    })
+                    .catch(function () {
+                        if (checkMsg) { checkMsg.textContent = 'Une erreur est survenue. Réessayez plus tard.'; checkMsg.classList.add('clp-err'); }
+                    });
+            });
+        }
+
         verifyBtn.addEventListener('click', function () {
             setMessage(verifyMsg, '', true);
             var fd = new FormData();

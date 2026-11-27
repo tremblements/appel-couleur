@@ -11,6 +11,60 @@ class CLP_Upload
         add_action('wp_ajax_nopriv_clp_verify', array(__CLASS__, 'handle_verify'));
         add_action('wp_ajax_clp_deposit', array(__CLASS__, 'handle_deposit'));
         add_action('wp_ajax_nopriv_clp_deposit', array(__CLASS__, 'handle_deposit'));
+        add_action('wp_ajax_clp_check_deposit', array(__CLASS__, 'handle_check_deposit'));
+        add_action('wp_ajax_nopriv_clp_check_deposit', array(__CLASS__, 'handle_check_deposit'));
+    }
+
+    public static function handle_check_deposit(): void
+    {
+        check_ajax_referer('clp_check_deposit', 'nonce');
+        $raw = isset($_POST['email']) ? wp_unslash($_POST['email']) : '';
+        $email = is_string($raw) ? sanitize_email($raw) : '';
+        if ($email === '') {
+            wp_send_json(array('success' => false, 'message' => 'Merci de saisir votre adresse e-mail.'), 400);
+        }
+
+        $throttle_key = 'clp_check_' . md5(strtolower($email));
+        if (get_transient($throttle_key) !== false) {
+            wp_send_json(array('success' => false, 'message' => "Un e-mail vient déjà d'être envoyé il y a moins d'une minute. Réessayez dans un instant."), 429);
+        }
+        set_transient($throttle_key, '1', 60);
+
+        $candidates = array();
+        if (in_array($email, self::test_identifiers(), true)) {
+            $candidates = array(array('ticket' => 'test' . substr(md5(strtolower($email)), 0, 10), 'order_id' => 'TEST', 'email' => $email));
+        } else {
+            $candidates = CLP_HelloAsso::find_by_email($email);
+        }
+
+        $found = null;
+        foreach ($candidates as $candidate) {
+            if (!is_array($candidate) || empty($candidate['ticket'])) {
+                continue;
+            }
+            $row = CLP_DB::get_ticket((string) $candidate['ticket']);
+            if (is_array($row) && $row['status'] === 'deposited') {
+                $found = $row;
+                break;
+            }
+        }
+
+        if ($found === null) {
+            CLP_DB::log('check', $email, 'refused', 'aucun-depot', 'vérification de dépôt');
+            wp_send_json(array(
+                'success' => false,
+                'message' => "Aucun dépôt trouvé pour cette adresse (billet non payé, ou aucun dépôt effectué avec cette adresse).",
+            ), 404);
+        }
+
+        $to = !empty($found['payer_email']) ? (string) $found['payer_email'] : $email;
+        $sent = self::send_deposit_receipt($to, $found);
+        CLP_DB::log('check', (string) $found['ticket'], 'success', $sent ? 'mail-envoye' : 'echec-envoi', 'vérification de dépôt');
+        wp_send_json(array(
+            'success' => true,
+            'message' => sprintf("Un e-mail vient de vous être envoyé à %s.", $to),
+            'email_sent' => $sent,
+        ));
     }
 
     public static function handle_verify(): void
@@ -448,6 +502,23 @@ class CLP_Upload
         }
         $clean = preg_replace('/[^A-Za-z0-9_-]/', '', $raw);
         return is_string($clean) ? substr($clean, 0, 64) : '';
+    }
+
+    private static function send_deposit_receipt(string $to, array $row): bool
+    {
+        $lines = array(
+            'Bonjour,',
+            '',
+            "Vous avez bien déposé une contribution pour l'appel en cours.",
+            '',
+            'Nom anonymisé du fichier déposé : ' . basename((string) ($row['dropbox_path'] ?? '')),
+            "Code d'anonymisation qui vous a été attribué : " . (string) ($row['human_code'] ?? ''),
+            'Catégorie : ' . CLP_Settings::subcategory_label((string) ($row['subcategory'] ?? '')),
+            'Date du dépôt : ' . (string) ($row['deposited_at'] ?? '') . ' (heure de Paris)',
+            '',
+            "L'équipe de la revue",
+        );
+        return (bool) wp_mail($to, "Votre dépôt — confirmation et code d'anonymisation", implode("\n", $lines));
     }
 
     private static function send_confirmation(string $to, string $uploaded_name, string $subcategory_label, string $anon_name, bool $replaced): bool

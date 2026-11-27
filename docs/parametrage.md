@@ -36,6 +36,7 @@ Après avoir enregistré les réglages, cliquez sur **« Tester la connexion à 
 que le slug est correct.
 | Champ de vérification du ticket | `item_id` (n° d'article, défaut), `order_id` (n° de commande) ou `custom_field` (champ personnalisé du formulaire de vente) selon ce qui figure sur le billet |
 | Identification par e-mail | case cochée par défaut dans les réglages : le déposant peut saisir, à la place du n° de ticket, **l'adresse e-mail utilisée pour l'achat** sur HelloAsso |
+| Identifiants de test | un n° de billet ou e-mail par ligne : acceptés **sans appel à l'API HelloAsso** (commande fictive « TEST »), pour retester le parcours de dépôt en recette. **Laisser vide en production.** |
 
 Seules les commandes **payées/autorisées** (`state = Authorized`) valident un identifiant. L'e-mail du
 payeur est lu sur la commande (message de confirmation) et sert aussi à retrouver le ticket quand le
@@ -78,6 +79,8 @@ Le token est un secret : il est stocké dans `wp_options` et n'est jamais journa
 
 ## 7. Suivi
 
-Menu admin **Contribalapelle** : journal des opérations (vérifications et dépôts, réussis ou refusés avec
-motif) et table des tickets (correspondance commande HelloAsso, sous-catégorie, chemin Dropbox, horodatages).
-Suppression des données après publication du numéro (intervention manuelle ou cron selon l'organisation choisie).
+Menu admin **Contribalapelle** (`admin.php?page=contribalapelle-suivi`) : journal des opérations
+(vérifications et dépôts, réussis ou refusés avec motif) et table des tickets (correspondance commande
+HelloAsso, sous-catégorie, code humain, chemin Dropbox, horodatages), avec **suppression individuelle**
+d'un ticket (utile pour les tests) et bouton **« Purger toutes les données (RGPD) »** à utiliser après la
+publication du numéro.

@@ -10,6 +10,7 @@ class CLP_Shortcode
     public static function register(): void
     {
         add_shortcode(self::SHORTCODE, array(__CLASS__, 'render'));
+        add_shortcode('clp_preselection', array(__CLASS__, 'render_preselection'));
         add_action('wp_enqueue_scripts', array(__CLASS__, 'enqueue_assets'));
     }
 
@@ -40,6 +41,7 @@ class CLP_Shortcode
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce_verify' => wp_create_nonce('clp_verify'),
             'nonce_deposit' => wp_create_nonce('clp_deposit'),
+            'nonce_check' => wp_create_nonce('clp_check_deposit'),
             'read_only' => $window['status'] !== 'open',
             'window' => array(
                 'status' => $window['status'],
@@ -79,6 +81,17 @@ class CLP_Shortcode
         ?>
         <div class="clp-depot" id="clp-depot">
             <p class="clp-notice" id="clp-notice"><?php echo $notice; ?></p>
+            <?php if (($settings['show_progress'] ?? '') === '1') : ?>
+                <?php
+                $deposits = CLP_DB::count_deposits();
+                $total_items = CLP_HelloAsso::count_items_cached();
+                $pct = $total_items > 0 ? min(100, (int) round($deposits / $total_items * 100)) : 0;
+                ?>
+                <div class="clp-progress-wrap">
+                    <div class="clp-progress"><div class="clp-progress-bar" style="width: <?php echo esc_attr((string) $pct); ?>%;"></div></div>
+                    <p class="clp-progress-text"><?php echo esc_html($deposits . ' dépôt(s) effectué(s)' . ($total_items > 0 ? ' sur ' . $total_items . ' billet(s)' : '')); ?></p>
+                </div>
+            <?php endif; ?>
             <?php if (!$read_only) : ?>
                 <button type="button" class="clp-toggle" id="clp-toggle">Je dépose</button>
             <?php endif; ?>
@@ -115,6 +128,36 @@ class CLP_Shortcode
 
                 <p class="clp-privacy"><?php echo wp_kses_post($settings['privacy_notice']); ?></p>
             </form>
+            <div class="clp-check-wrap">
+                <button type="button" class="clp-check-toggle" id="clp-check-toggle">Vérification dépôt</button>
+                <div class="clp-check clp-hidden" id="clp-check">
+                    <label class="clp-label" for="clp-check-email">Adresse e-mail utilisée pour l'achat du billet HelloAsso</label>
+                    <input type="email" id="clp-check-email" class="clp-input">
+                    <button type="button" class="clp-btn" id="clp-check-btn">Envoyer la vérification</button>
+                    <p class="clp-message" id="clp-check-message" aria-live="polite"></p>
+                </div>
+            </div>
+        </div>
+        <?php
+        return (string) ob_get_clean();
+    }
+
+    public static function render_preselection($atts = array()): string
+    {
+        $rows = CLP_DB::preselected_list();
+        ob_start();
+        ?>
+        <div class="clp-preselect">
+            <h3 class="clp-preselect-title">Contributions présélectionnées par le comité de lecture</h3>
+            <?php if ($rows === array()) : ?>
+                <p>Aucune contribution présélectionnée pour le moment.</p>
+            <?php else : ?>
+                <ul class="clp-preselect-list">
+                    <?php foreach ($rows as $row) : ?>
+                        <li><strong><?php echo esc_html((string) ($row['human_code'] ?? '')); ?></strong> — <?php echo esc_html(CLP_Settings::cat_label((string) ($row['subcategory'] ?? ''))); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
         </div>
         <?php
         return (string) ob_get_clean();

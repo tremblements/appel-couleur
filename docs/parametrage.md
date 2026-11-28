@@ -66,24 +66,25 @@ désigne le premier billet non encore déposé.
 
 Le token est un secret : il est stocké dans `wp_options` et n'est jamais journalisé ni affiché côté public.
 
-### Jeton permanent (recommandé) : flux OAuth offline (refresh token)
+### Jeton permanent (recommandé) : flux OAuth offline, échange automatique dans le backoffice
 
 Un token « Generated access token » expire (~4 h) tant que l'app est en mode Development. Pour un jeton
 permanent **sans passer l'app en production** :
 
-1. App Console → app → Settings → OAuth 2 : notez **App key** et **App secret**, et ajoutez une redirect URI,
-   ex. `https://www.pourtant.fr/`.
-2. Ouvrez dans votre navigateur (connecté au compte Dropbox de la revue) :
-   `https://www.dropbox.com/oauth2/authorize?client_id=APP_KEY&response_type=code&token_access_type=offline&redirect_uri=https://www.pourtant.fr/`
-   → autorisez → la redirection contient `?code=XXXX` : copiez ce code.
-3. Sur votre ordinateur, échangez ce code contre un refresh token (POST sur `https://api.dropboxapi.com/oauth2/token` avec
-   `grant_type=authorization_code`, `code`, `client_id`, `client_secret`, `redirect_uri`).
-4. Dans **Réglages → Contribalapelle**, remplissez **App Key**, **App Secret** et **Refresh Token** (laissez
-   « Access Token » vide). Le plugin renouvelle automatiquement le access token toutes les ~4 h.
+1. App Console → app → Settings → OAuth 2 : notez **App key** et **App secret**, et ajoutez comme
+   redirect URI l'URL d'accueil du site WordPress, ex. `https://www.pourtant.fr/` (avec le slash final).
+2. Ouvrez dans votre navigateur (connecté au compte Dropbox de la revue), avec la **vraie** App key :
+   `https://www.dropbox.com/oauth2/authorize?client_id=<APP_KEY>&response_type=code&token_access_type=offline&redirect_uri=<URL_ENCODEE_DE_LA_REDIRECT_URI>`
+   → « Autoriser » → la page est redirigée vers `https://www.pourtant.fr/?code=XXXX…` : copiez ce `code`.
+3. Dans **Réglages → Contribalapelle → Dropbox** : remplissez d'abord **App Key** et **App Secret**,
+   enregistrez, puis collez le `code` dans le champ **« Échanger un code OAuth »** et cliquez sur
+   « Échanger contre le refresh token ». Le plugin fait l'appel au point token OAuth et enregistre
+   automatiquement App key, App secret et le **refresh token** (permanent). Le access token est
+   renouvelé automatiquement toutes les ~4 h.
 
-Cette même étape OAuth (un utilisateur/team authentifié) est ce que Dropbox exige avant « Apply for
-production » : une fois faite, vous pouvez aussi passer l'app en production et utiliser un token
-« No expiration ».
+Cette même étape « un utilisateur/team a autorisé l'app » est ce que Dropbox exige avant
+« Apply for production » : une fois faite, vous pouvez aussi passer l'app en production et utiliser
+un token « No expiration ».
 
 ## 5. E-mail de confirmation et confidentialité
 

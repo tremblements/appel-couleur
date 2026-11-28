@@ -15,6 +15,59 @@ class CLP_Settings
         add_action('admin_init', array(__CLASS__, 'register_settings'));
         add_action('wp_ajax_clp_admin_test_ha', array(__CLASS__, 'test_helloasso'));
         add_action('wp_ajax_clp_admin_regen_codes', array(__CLASS__, 'regen_codes'));
+        add_action('admin_post_clp_admin_dropbox_exchange', array(__CLASS__, 'dropbox_exchange'));
+    }
+
+    public static function dropbox_exchange(): void
+    {
+        check_admin_referer('clp_admin_dropbox_exchange');
+        if (!current_user_can('manage_options')) {
+            wp_die('Accès refusé.');
+        }
+        $base = admin_url('options-general.php?page=contribalapelle');
+        $code = isset($_POST['oauth_code']) ? sanitize_text_field(wp_unslash($_POST['oauth_code'])) : '';
+        $s = self::get();
+        $client_id = !empty($s['dropbox_client_id']) ? (string) $s['dropbox_client_id']
+            : (isset($_POST['client_id']) ? sanitize_text_field(wp_unslash($_POST['client_id'])) : '');
+        $client_secret = !empty($s['dropbox_client_secret']) ? (string) $s['dropbox_client_secret']
+            : (isset($_POST['client_secret']) ? sanitize_text_field(wp_unslash($_POST['client_secret'])) : '');
+        if ($code === '' || $client_id === '' || $client_secret === '') {
+            wp_safe_redirect($base . '&clp_msg=' . rawurlencode('Code OAuth, App key ou App secret manquant : remplissez les champs Dropbox ci-dessus et collez le code reçu.'));
+            exit;
+        }
+        $redirect_uri = home_url('/');
+        $token_url = 'https://api.dropbox' . 'api.com/oauth2/token';
+        $response = wp_remote_post($token_url, array(
+            'timeout' => 20,
+            'body' => array(
+                'grant_type' => 'authorization_code',
+                'code' => $code,
+                'client_id' => $client_id,
+                'client_secret' => $client_secret,
+                'redirect_uri' => $redirect_uri,
+            ),
+        ));
+        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+            $err = is_wp_error($response) ? $response->get_error_message() : wp_remote_retrieve_body($response);
+            wp_safe_redirect($base . '&clp_msg=' . rawurlencode('Échec de l\'échange OAuth : ' . $err));
+            exit;
+        }
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        if (!is_array($body) || empty($body['refresh_token'])) {
+            wp_safe_redirect($base . '&clp_msg=' . rawurlencode("Réponse sans refresh_token : vérifiez que l'URL d'autorisation contenait token_access_type=offline, et que le code n'a pas déjà été utilisé."));
+            exit;
+        }
+        $settings = self::get();
+        $settings['dropbox_client_id'] = $client_id;
+        $settings['dropbox_client_secret'] = $client_secret;
+        $settings['dropbox_refresh_token'] = (string) $body['refresh_token'];
+        $settings['dropbox_token'] = '';
+        update_option(self::OPTION_KEY, $settings);
+        if (!empty($body['access_token'])) {
+            set_transient('clp_dropbox_access_token', (string) $body['access_token'], 14000);
+        }
+        wp_safe_redirect($base . '&clp_msg=' . rawurlencode('Refresh token enregistré : les dépôts Dropbox sont maintenant permanents (renouvellement automatique).'));
+        exit;
     }
 
     public static function regen_codes(): void
@@ -309,6 +362,9 @@ class CLP_Settings
         ?>
         <div class="wrap">
             <h1>Contribalapelle — Paramètres</h1>
+            <?php if (isset($_GET['clp_msg'])) : ?>
+                <div class="notice notice-info"><p><?php echo esc_html(sanitize_text_field(wp_unslash($_GET['clp_msg']))); ?></p></div>
+            <?php endif; ?>
             <form method="post" action="options.php">
                 <?php settings_fields(self::SETTINGS_GROUP); ?>
 
@@ -469,7 +525,19 @@ class CLP_Settings
                     <tr><th scope="row">Access Token Dropbox (recommandé : laisser vide si refresh token rempli)</th><td><input type="password" class="regular-text" name="<?php echo esc_attr($o); ?>[dropbox_token]" value="<?php echo esc_attr($s['dropbox_token']); ?>"><p class="description">Token généré (court, ~4 h). Préférable : remplir plutôt les 3 champs ci-dessous (App key / App secret / Refresh token) pour un renouvellement automatique permanent.</p></td></tr>
                     <tr><th scope="row">App Key Dropbox (client ID)</th><td><input type="text" class="regular-text" name="<?php echo esc_attr($o); ?>[dropbox_client_id]" value="<?php echo esc_attr($s['dropbox_client_id']); ?>"><p class="description">App Console → ton app → Settings → « App key ».</p></td></tr>
                     <tr><th scope="row">App Secret Dropbox (client secret)</th><td><input type="password" class="regular-text" name="<?php echo esc_attr($o); ?>[dropbox_client_secret]" value="<?php echo esc_attr($s['dropbox_client_secret']); ?>"><p class="description">App Console → ton app → Settings → « App secret ».</p></td></tr>
-                    <tr><th scope="row">Refresh Token Dropbox</th><td><input type="password" class="regular-text" name="<?php echo esc_attr($o); ?>[dropbox_refresh_token]" value="<?php echo esc_attr($s['dropbox_refresh_token']); ?>"><p class="description">Obtenu via le flux OAuth offline : ajoutez une redirect URI (ex. <code>https://www.pourtant.fr/</code>) dans l'app, ouvrez <code>https://www.dropbox.com/oauth2/authorize?client_id=APP_KEY&amp;response_type=code&amp;token_access_type=offline&amp;redirect_uri=https://www.pourtant.fr/</code>, autorisez, copiez le <code>code</code> de l'URL de redirection, puis échangez-le : <code>curl https://api.dropbox.com/oauth2/token -d code=CODE -d grant_type=authorization_code -d client_id=APP_KEY -d client_secret=APP_SECRET -d redirect_uri=https://www.pourtant.fr/</code> → collez ici le <code>refresh_token</code> de la réponse. Voir docs/parametrage.md §4.</p></td></tr>
+                    <tr><th scope="row">Refresh Token Dropbox</th><td><input type="password" class="regular-text" name="<?php echo esc_attr($o); ?>[dropbox_refresh_token]" value="<?php echo esc_attr($s['dropbox_refresh_token']); ?>"><p class="description">Obtenu automatiquement via le formulaire « Échanger un code OAuth » ci-dessous (recommandé), ou manuellement via le flux OAuth offline — voir docs/parametrage.md §4.</p></td></tr>
+                    <tr>
+                        <th scope="row">Échanger un code OAuth (usage unique)</th>
+                        <td>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                                <input type="hidden" name="action" value="clp_admin_dropbox_exchange">
+                                <?php wp_nonce_field('clp_admin_dropbox_exchange'); ?>
+                                <input type="text" class="regular-text" name="oauth_code" placeholder="code reçu après autorisation (?code=…)"> 
+                                <button type="submit" class="button">Échanger contre le refresh token</button>
+                            </form>
+                            <p class="description">Ouvrez l'URL d'autorisation (App key renseignée, <code>token_access_type=offline</code>, redirect URI = <code><?php echo esc_html(home_url('/')); ?></code> — à enregistrer telle quelle dans l'app), autorisez, puis collez ici le <code>code</code> de l'URL de redirection. Le plugin enregistre automatiquement App key, App secret et le refresh token. Voir docs/parametrage.md §4.</p>
+                        </td>
+                    </tr>
                     <tr>
                         <th scope="row">Poids maximum par fichier (Mo)</th>
                         <td><input type="number" min="1" max="500" name="<?php echo esc_attr($o); ?>[max_file_mb]" value="<?php echo esc_attr((string) $s['max_file_mb']); ?>"></td>

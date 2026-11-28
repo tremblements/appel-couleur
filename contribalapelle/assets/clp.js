@@ -1,0 +1,214 @@
+(function () {
+    'use strict';
+
+    function init() {
+        var form = document.getElementById('clp-form');
+        if (!form || typeof CLP_DATA === 'undefined') {
+            return;
+        }
+
+        var toggle = document.getElementById('clp-toggle');
+        var ticketInput = document.getElementById('clp-ticket');
+        var emailInput = document.getElementById('clp-email');
+        var verifyBtn = document.getElementById('clp-verify-btn');
+        var verifyMsg = document.getElementById('clp-verify-message');
+        var stepCat = document.getElementById('clp-step-cat');
+        var stepFile = document.getElementById('clp-step-file');
+        var subSelect = document.getElementById('clp-subcategory');
+        var toFileBtn = document.getElementById('clp-to-file');
+        var fileInput = document.getElementById('clp-file');
+        var fileHint = document.getElementById('clp-file-hint');
+        var depositMsg = document.getElementById('clp-deposit-message');
+        var depositDetail = document.getElementById('clp-deposit-detail');
+        var confirmWrap = document.getElementById('clp-confirm-wrap');
+        var confirmBox = document.getElementById('clp-confirm-replace');
+        var alreadyDeposited = false;
+
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                form.classList.toggle('clp-hidden');
+            });
+        }
+
+        function setMessage(el, text, ok) {
+            el.textContent = text;
+            el.classList.toggle('clp-ok', !!ok);
+            el.classList.toggle('clp-err', !ok);
+        }
+
+        function parseAjax(r) {
+            return r.text().then(function (txt) {
+                var data;
+                try { data = JSON.parse(txt); } catch (e) {
+                    data = { success: false, message: 'Réponse serveur illisible (début : ' + txt.slice(0, 120) + ') — rechargez la page (Ctrl+F5).' };
+                }
+                return data;
+            });
+        }
+
+        function currentType() {
+            var found = CLP_DATA.subcategories.filter(function (s) { return s.key === subSelect.value; })[0];
+            return found ? found.type : 'texte';
+        }
+
+        function fillSubcategories() {
+            subSelect.innerHTML = '';
+            CLP_DATA.subcategories.forEach(function (sub) {
+                var opt = document.createElement('option');
+                opt.value = sub.key;
+                opt.textContent = sub.label;
+                subSelect.appendChild(opt);
+            });
+            subSelect.disabled = !!CLP_DATA.read_only;
+            updateFileHint();
+        }
+
+        function updateFileHint() {
+            var type = currentType();
+            var exts = CLP_DATA.ext[type] || [];
+            fileHint.textContent = 'Formats acceptés : ' + exts.join(', ') + ' — poids maximum ' + CLP_DATA.max_mb + ' Mo. Un seul fichier par dépôt.';
+            fileInput.setAttribute('accept', exts.map(function (e) { return '.' + e; }).join(','));
+        }
+
+        subSelect.addEventListener('change', function () {
+            updateFileHint();
+        });
+
+        var checkToggle = document.getElementById('clp-check-toggle');
+        var checkBox = document.getElementById('clp-check');
+        var checkEmail = document.getElementById('clp-check-email');
+        var checkBtn = document.getElementById('clp-check-btn');
+        var checkMsg = document.getElementById('clp-check-message');
+
+        if (checkToggle) {
+            checkToggle.addEventListener('click', function () {
+                checkBox.classList.toggle('clp-hidden');
+            });
+        }
+
+        if (checkBtn) {
+            checkBtn.addEventListener('click', function () {
+                if (checkMsg) { checkMsg.textContent = ''; checkMsg.className = 'clp-message'; }
+                var fd = new FormData();
+                fd.append('action', 'clp_check_deposit');
+                fd.append('nonce', CLP_DATA.nonce_check);
+                fd.append('email', checkEmail.value);
+                fetch(CLP_DATA.ajax_url, { method: 'POST', body: fd, credentials: 'same-origin' })
+                    .then(function (r) {
+                        return r.text().then(function (txt) {
+                            var data;
+                            try { data = JSON.parse(txt); } catch (e) { data = { success: false, message: 'Erreur serveur inattendue. Réessayez plus tard.' }; }
+                            return data;
+                        });
+                    })
+                    .then(function (data) {
+                        data = data || {};
+                        if (checkMsg) {
+                            checkMsg.textContent = data.message || (data.success ? 'Un e-mail vient de vous être envoyé.' : "Échec de l'envoi.");
+                            checkMsg.classList.toggle('clp-ok', !!data.success);
+                            checkMsg.classList.toggle('clp-err', !data.success);
+                        }
+                    })
+                    .catch(function (err) {
+                        if (checkMsg) { checkMsg.textContent = 'Erreur réseau : ' + (err && err.message ? err.message : 'inconnue') + ' — rechargez la page (Ctrl+F5).'; checkMsg.classList.add('clp-err'); }
+                    });
+            });
+        }
+
+        verifyBtn.addEventListener('click', function () {
+            setMessage(verifyMsg, '', true);
+            var fd = new FormData();
+            fd.append('action', 'clp_verify');
+            fd.append('nonce', CLP_DATA.nonce_verify);
+            fd.append('ticket', ticketInput.value);
+            fetch(CLP_DATA.ajax_url, { method: 'POST', body: fd, credentials: 'same-origin' })
+                .then(parseAjax)
+                .then(function (data) {
+                    data = data || {};
+                    if (data.success && data.valid) {
+                        alreadyDeposited = !!data.already_deposited;
+                        fillSubcategories();
+                        if (confirmWrap) {
+                            confirmWrap.classList.toggle('clp-hidden', !alreadyDeposited);
+                        }
+                        setMessage(verifyMsg, 'Vous êtes bien inscrit à cet appel ' + (CLP_DATA.appel_label || '') + '.', true);
+                        stepCat.classList.remove('clp-hidden');
+                    } else {
+                        setMessage(verifyMsg, data.message || 'Identifiant invalide.', false);
+                    }
+                })
+                .catch(function (err) {
+                    setMessage(verifyMsg, 'Erreur réseau : ' + (err && err.message ? err.message : 'inconnue') + ' — rechargez la page (Ctrl+F5).', false);
+                });
+        });
+
+        toFileBtn.addEventListener('click', function () {
+            stepFile.classList.remove('clp-hidden');
+        });
+
+        form.addEventListener('submit', function (ev) {
+            ev.preventDefault();
+            setMessage(depositMsg, '', true);
+            if (depositDetail) { depositDetail.textContent = ''; }
+            if (!fileInput.files || fileInput.files.length === 0) {
+                setMessage(depositMsg, 'Aucun fichier sélectionné.', false);
+                return;
+            }
+            var fd = new FormData();
+            fd.append('action', 'clp_deposit');
+            fd.append('nonce', CLP_DATA.nonce_deposit);
+            fd.append('ticket', ticketInput.value);
+            fd.append('email', emailInput.value);
+            fd.append('subcategory', subSelect.value);
+            fd.append('confirm_replace', alreadyDeposited && confirmBox && confirmBox.checked ? '1' : '0');
+            fd.append('file', fileInput.files[0]);
+            var submitBtn = document.getElementById('clp-submit');
+            submitBtn.disabled = true;
+            fetch(CLP_DATA.ajax_url, { method: 'POST', body: fd, credentials: 'same-origin' })
+                .then(parseAjax)
+                .then(function (data) {
+                    data = data || {};
+                    if (data.success) {
+                        setMessage(depositMsg, data.message || 'Votre contribution a bien été déposée. Merci !', true);
+                        if (depositDetail) {
+                            var lines = [];
+                            if (data.uploaded_name) {
+                                lines.push('Document déposé : ' + data.uploaded_name + (data.size ? ' (' + data.size + ')' : ''));
+                            }
+                            if (data.subcategory_label) {
+                                lines.push('Nature de la contribution : ' + data.subcategory_label);
+                            }
+                            if (data.filename) {
+                                lines.push('Nom anonymisé dans notre espace : ' + data.filename);
+                            }
+                            if (data.replaced) {
+                                lines.push('Ce dépôt remplace votre contribution précédente, qui a été effacée.');
+                            }
+                            if (data.email_sent && data.email) {
+                                lines.push('Un e-mail récapitulatif vient de vous être envoyé à ' + data.email + '.');
+                            } else if (!data.email_sent) {
+                                lines.push("Aucun e-mail de confirmation n'a pu être envoyé (adresse e-mail introuvable).");
+                            }
+                            depositDetail.textContent = lines.join('\n');
+                        }
+                    } else {
+                        setMessage(depositMsg, data.message || 'Le dépôt a été refusé.', false);
+                    }
+                })
+                .catch(function (err) {
+                    setMessage(depositMsg, 'Erreur réseau : ' + (err && err.message ? err.message : 'inconnue') + ' — rechargez la page (Ctrl+F5).', false);
+                })
+                .finally(function () {
+                    submitBtn.disabled = false;
+                });
+        });
+
+        fillSubcategories();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();

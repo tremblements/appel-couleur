@@ -1,0 +1,564 @@
+<?php
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+class CLP_Settings
+{
+    const OPTION_KEY = 'clp_settings';
+    const SETTINGS_GROUP = 'clp_settings_group';
+    const SETTINGS_PAGE = 'contribalapelle';
+
+    public static function init(): void
+    {
+        add_action('admin_menu', array(__CLASS__, 'add_menu'));
+        add_action('admin_init', array(__CLASS__, 'register_settings'));
+        add_action('wp_ajax_clp_admin_test_ha', array(__CLASS__, 'test_helloasso'));
+        add_action('wp_ajax_clp_admin_regen_codes', array(__CLASS__, 'regen_codes'));
+        add_action('admin_post_clp_admin_dropbox_exchange', array(__CLASS__, 'dropbox_exchange'));
+    }
+
+    public static function dropbox_exchange(): void
+    {
+        check_admin_referer('clp_admin_dropbox_exchange');
+        if (!current_user_can('manage_options')) {
+            wp_die('Accès refusé.');
+        }
+        $base = admin_url('options-general.php?page=contribalapelle');
+        $code = isset($_POST['oauth_code']) ? sanitize_text_field(wp_unslash($_POST['oauth_code'])) : '';
+        $s = self::get();
+        $client_id = !empty($s['dropbox_client_id']) ? (string) $s['dropbox_client_id']
+            : (isset($_POST['client_id']) ? sanitize_text_field(wp_unslash($_POST['client_id'])) : '');
+        $client_secret = !empty($s['dropbox_client_secret']) ? (string) $s['dropbox_client_secret']
+            : (isset($_POST['client_secret']) ? sanitize_text_field(wp_unslash($_POST['client_secret'])) : '');
+        if ($code === '' || $client_id === '' || $client_secret === '') {
+            wp_safe_redirect($base . '&clp_msg=' . rawurlencode('Code OAuth, App key ou App secret manquant : remplissez les champs Dropbox ci-dessus et collez le code reçu.'));
+            exit;
+        }
+        $redirect_uri = home_url('/');
+        $token_url = 'https://api.dropbox' . 'api.com/oauth2/token';
+        $response = wp_remote_post($token_url, array(
+            'timeout' => 20,
+            'body' => array(
+                'grant_type' => 'authorization_code',
+                'code' => $code,
+                'client_id' => $client_id,
+                'client_secret' => $client_secret,
+                'redirect_uri' => $redirect_uri,
+            ),
+        ));
+        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+            $err = is_wp_error($response) ? $response->get_error_message() : wp_remote_retrieve_body($response);
+            wp_safe_redirect($base . '&clp_msg=' . rawurlencode('Échec de l\'échange OAuth : ' . $err));
+            exit;
+        }
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        if (!is_array($body) || empty($body['refresh_token'])) {
+            wp_safe_redirect($base . '&clp_msg=' . rawurlencode("Réponse sans refresh_token : vérifiez que l'URL d'autorisation contenait token_access_type=offline, et que le code n'a pas déjà été utilisé."));
+            exit;
+        }
+        $settings = self::get();
+        $settings['dropbox_client_id'] = $client_id;
+        $settings['dropbox_client_secret'] = $client_secret;
+        $settings['dropbox_refresh_token'] = (string) $body['refresh_token'];
+        $settings['dropbox_token'] = '';
+        update_option(self::OPTION_KEY, $settings);
+        if (!empty($body['access_token'])) {
+            set_transient('clp_dropbox_access_token', (string) $body['access_token'], 14000);
+        }
+        wp_safe_redirect($base . '&clp_msg=' . rawurlencode('Refresh token enregistré : les dépôts Dropbox sont maintenant permanents (renouvellement automatique).'));
+        exit;
+    }
+
+    public static function regen_codes(): void
+    {
+        check_ajax_referer('clp_admin_regen_codes', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_send_json(array('success' => false, 'message' => 'Accès refusé.'), 403);
+        }
+        $codes = CLP_Codes::generate();
+        wp_send_json(array(
+            'success' => true,
+            'message' => sprintf('%d codes humains générés (ex. : %s).', count($codes), implode(', ', array_slice($codes, 0, 8))),
+        ));
+    }
+
+    public static function test_helloasso(): void
+    {
+        check_ajax_referer('clp_admin_test_ha', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_send_json(array('success' => false, 'message' => 'Accès refusé.'), 403);
+        }
+        $result = CLP_HelloAsso::count_authorized_orders();
+        if (!$result['ok']) {
+            $message = 'Échec de la connexion : ' . self::ha_reason_message($result['reason']);
+            if ($result['reason'] === 'configuration-incomplete' && !empty($result['missing'])) {
+                $message = 'Configuration incomplète — champs vides : ' . implode(', ', $result['missing'])
+                    . '. Saisissez-les ci-dessus puis cliquez sur « Enregistrer les modifications » en bas de page avant de tester.';
+            }
+            wp_send_json(array('success' => false, 'message' => $message));
+        }
+        $s = self::get();
+        $states_txt = array();
+        foreach ((array) ($result['states'] ?? array()) as $state => $n) {
+            $states_txt[] = $state . '=' . (int) $n;
+        }
+        $message = sprintf(
+            'Billetterie « %s / %s / %s » : %d commande(s) au total [%s], dont %d payée(s) (Authorized). Seules les commandes payées valident un dépôt.',
+            $s['helloasso_org_slug'],
+            $s['helloasso_form_type'],
+            $s['helloasso_form_slug'],
+            isset($result['total']) ? (int) $result['total'] : 0,
+            implode(', ', $states_txt) !== '' ? implode(', ', $states_txt) : 'aucune',
+            $result['count']
+        );
+        if ((int) $result['count'] === 0) {
+            $forms = CLP_HelloAsso::list_forms($s['helloasso_form_type']);
+            if ($forms !== array()) {
+                $lines = array();
+                foreach ($forms as $form) {
+                    $lines[] = '« ' . $form['title'] . ' » [' . $form['state'] . ']';
+                }
+                $message .= ' Billetteries de type ' . $s['helloasso_form_type'] . ' de l\'organisation (le slug se lit dans l\'URL publique de chaque billetterie) : ' . implode(' | ', $lines);
+            }
+        }
+        wp_send_json(array(
+            'success' => true,
+            'message' => $message,
+        ));
+    }
+
+    private static function ha_reason_message(string $reason): string
+    {
+        $messages = array(
+            'configuration-incomplete' => 'Client ID / Client Secret / slug d\'organisation / slug de billetterie incomplet.',
+            'auth-failed' => 'authentification OAuth refusée (vérifiez Client ID / Client Secret).',
+            'network-error' => 'réseau injoignable.',
+        );
+        if (strncmp($reason, 'api-error-', 10) === 0) {
+            return 'l\'API renvoie ' . $reason . ' (vérifiez le slug d\'organisation, le type de formulaire et le slug de la billetterie).';
+        }
+        return isset($messages[$reason]) ? $messages[$reason] : $reason;
+    }
+
+    public static function defaults(): array
+    {
+        return array(
+            'appel_name' => 'appel',
+            'appel_label' => '',
+            'window_open' => '',
+            'window_close' => '',
+            'codes_count' => 5000,
+            'show_progress' => '1',
+            'cat_labels' => array(
+                'fiction_500' => 'fiction_500',
+                'fiction_250' => 'fiction_250',
+                'haiku' => 'haiku',
+                'poeme_long' => 'poeme_long',
+                'poeme_court' => 'poeme_court',
+                'image' => 'image',
+            ),
+            'label_fiction_500' => 'Fiction — 500 mots',
+            'label_fiction_250' => 'Fiction — 250 mots',
+            'label_haiku' => 'Haïku (5-7-5)',
+            'label_poeme_long' => 'Poème long (40 à 100 lignes)',
+            'label_poeme_court' => 'Poème court',
+            'label_photographie' => 'Photographie',
+            'label_illustration' => 'Illustration',
+            'helloasso_api_url' => 'https://api.helloasso.com/v5',
+            'helloasso_client_id' => '',
+            'helloasso_client_secret' => '',
+            'helloasso_org_slug' => '',
+            'helloasso_form_type' => 'Event',
+            'helloasso_form_slug' => '',
+            'helloasso_ticket_field' => 'item_id',
+            'allow_email' => '1',
+            'test_ids' => '',
+            'dropbox_token' => '',
+            'dropbox_client_id' => '',
+            'dropbox_client_secret' => '',
+            'dropbox_refresh_token' => '',
+            'max_file_mb' => 25,
+            'email_enabled' => '1',
+            'privacy_notice' => "En déposant une contribution, vous acceptez que votre identifiant HelloAsso (numéro de ticket ou adresse e-mail utilisée pour l'achat), le type de contribution, la date de dépôt et votre adresse e-mail soient traités par l'association éditrice de la revue Pourtant, pour l'organisation de l'appel à contributions (intérêt légitime). Ces données sont conservées jusqu'à la publication du numéro, puis supprimées. L'inscription via la billetterie HelloAsso relève de la politique de confidentialité de HelloAsso.",
+        );
+    }
+
+    public static function get(): array
+    {
+        $saved = get_option(self::OPTION_KEY, array());
+        if (!is_array($saved)) {
+            $saved = array();
+        }
+        return array_merge(self::defaults(), $saved);
+    }
+
+    public static function subcategories(): array
+    {
+        return array(
+            'fiction_500' => array('type' => 'texte', 'folder' => 'fiction_500'),
+            'fiction_250' => array('type' => 'texte', 'folder' => 'fiction_250'),
+            'haiku' => array('type' => 'texte', 'folder' => 'haiku'),
+            'poeme_long' => array('type' => 'texte', 'folder' => 'poeme_long'),
+            'poeme_court' => array('type' => 'texte', 'folder' => 'poeme_court'),
+            'photographie' => array('type' => 'image', 'folder' => 'photographie'),
+            'illustration' => array('type' => 'image', 'folder' => 'illustration'),
+        );
+    }
+
+    public static function label_keys(): array
+    {
+        return array(
+            'fiction_500' => 'label_fiction_500',
+            'fiction_250' => 'label_fiction_250',
+            'haiku' => 'label_haiku',
+            'poeme_long' => 'label_poeme_long',
+            'poeme_court' => 'label_poeme_court',
+            'photographie' => 'label_photographie',
+            'illustration' => 'label_illustration',
+        );
+    }
+
+    public static function appel_label(): string
+    {
+        $s = self::get();
+        return $s['appel_label'] !== '' ? (string) $s['appel_label'] : (string) $s['appel_name'];
+    }
+
+    public static function cat_label(string $key): string
+    {
+        $settings = self::get();
+        if (isset($settings['cat_labels'][$key]) && $settings['cat_labels'][$key] !== '') {
+            return (string) $settings['cat_labels'][$key];
+        }
+        return $key;
+    }
+
+    public static function subcategory_label(string $key): string
+    {
+        $settings = self::get();
+        $map = self::label_keys();
+        if (isset($map[$key]) && !empty($settings[$map[$key]])) {
+            return (string) $settings[$map[$key]];
+        }
+        $defaults = self::defaults();
+        return isset($map[$key]) ? (string) $defaults[$map[$key]] : $key;
+    }
+
+    public static function mimes(string $type): array
+    {
+        if ($type === 'image') {
+            return array(
+                'jpg' => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'tif' => 'image/tiff',
+                'tiff' => 'image/tiff',
+            );
+        }
+        return array(
+            'odt' => 'application/vnd.oasis.opendocument.text',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'pdf' => 'application/pdf',
+        );
+    }
+
+    public static function allowed_extensions(string $type): array
+    {
+        return array_keys(self::mimes($type));
+    }
+
+    public static function dropbox_root(): string
+    {
+        $settings = self::get();
+        $name = preg_replace('/[^A-Za-z0-9_-]/', '-', (string) $settings['appel_name']);
+        if (!is_string($name) || trim($name, '-') === '') {
+            $name = 'appel';
+        }
+        return '/Depots-' . trim($name, '-');
+    }
+
+    public static function add_menu(): void
+    {
+        add_options_page(
+            'Contribalapelle',
+            'Contribalapelle',
+            'manage_options',
+            self::SETTINGS_PAGE,
+            array(__CLASS__, 'render_page')
+        );
+    }
+
+    public static function register_settings(): void
+    {
+        register_setting(self::SETTINGS_GROUP, self::OPTION_KEY, array(
+            'type' => 'array',
+            'sanitize_callback' => array(__CLASS__, 'sanitize'),
+        ));
+    }
+
+    public static function sanitize($input): array
+    {
+        $clean = self::defaults();
+        if (!is_array($input)) {
+            return $clean;
+        }
+        $text_keys = array(
+            'appel_name', 'appel_label', 'label_fiction_500', 'label_fiction_250', 'label_haiku',
+            'label_poeme_long', 'label_poeme_court', 'label_photographie', 'label_illustration',
+            'helloasso_api_url', 'helloasso_client_id', 'helloasso_client_secret',
+            'helloasso_org_slug', 'helloasso_form_type', 'helloasso_form_slug',
+            'helloasso_ticket_field', 'dropbox_token', 'dropbox_client_id', 'dropbox_client_secret', 'dropbox_refresh_token',
+        );
+        foreach ($text_keys as $key) {
+            if (array_key_exists($key, $input)) {
+                $clean[$key] = sanitize_text_field((string) $input[$key]);
+            }
+        }
+        foreach (array('window_open', 'window_close') as $key) {
+            if (array_key_exists($key, $input)) {
+                $date = CLP_Window::parse_date((string) $input[$key]);
+                $clean[$key] = $date !== null ? $date->format('Y-m-d H:i') : '';
+            }
+        }
+        if (array_key_exists('max_file_mb', $input)) {
+            $clean['max_file_mb'] = min(500, max(1, (int) $input['max_file_mb']));
+        }
+        if (array_key_exists('codes_count', $input)) {
+            $clean['codes_count'] = min(50000, max(10, (int) $input['codes_count']));
+        }
+        $clean['email_enabled'] = !empty($input['email_enabled']) ? '1' : '';
+        $clean['allow_email'] = !empty($input['allow_email']) ? '1' : '';
+        $clean['show_progress'] = !empty($input['show_progress']) ? '1' : '';
+        if (isset($input['cat_labels']) && is_array($input['cat_labels'])) {
+            foreach (self::subcategories() as $key => $def) {
+                $clean['cat_labels'][$key] = isset($input['cat_labels'][$key]) && is_string($input['cat_labels'][$key])
+                    ? sanitize_text_field($input['cat_labels'][$key])
+                    : $key;
+            }
+        }
+        if (array_key_exists('privacy_notice', $input)) {
+            $clean['privacy_notice'] = wp_kses_post((string) $input['privacy_notice']);
+        }
+        if (array_key_exists('test_ids', $input) && is_string($input['test_ids'])) {
+            $clean['test_ids'] = sanitize_textarea_field($input['test_ids']);
+        }
+        if (!in_array($clean['helloasso_ticket_field'], array('item_id', 'order_id', 'custom_field'), true)) {
+            $clean['helloasso_ticket_field'] = 'item_id';
+        }
+        if (!in_array($clean['helloasso_form_type'], array('Event', 'Donation', 'Membership', 'PaymentForm', 'Shop', 'CrowdFunding', 'Checkout'), true)) {
+            $clean['helloasso_form_type'] = 'Event';
+        }
+        return $clean;
+    }
+
+    public static function render_page(): void
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Accès refusé.');
+        }
+        $s = self::get();
+        $o = self::OPTION_KEY;
+        ?>
+        <div class="wrap">
+            <h1>Contribalapelle — Paramètres <span class="clp-version">v<?php echo esc_html(CLP_VERSION); ?></span></h1>
+            <?php if (isset($_GET['clp_msg'])) : ?>
+                <div class="notice notice-info"><p><?php echo esc_html(sanitize_text_field(wp_unslash($_GET['clp_msg']))); ?></p></div>
+            <?php endif; ?>
+            <form method="post" action="options.php">
+                <?php settings_fields(self::SETTINGS_GROUP); ?>
+
+                <h2>Appel et fenêtre de dépôt</h2>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><label for="clp-appel">Nom de l'appel</label></th>
+                        <td>
+                            <input type="text" class="regular-text" id="clp-appel" name="<?php echo esc_attr($o); ?>[appel_name]" value="<?php echo esc_attr($s['appel_name']); ?>">
+                            <p class="description">Sert à nommer le dossier Dropbox créé : <code>Depots-&lt;nom&gt;/</code> (sous-dossiers <code>fiction</code>, <code>poesie</code>, <code>image</code>).</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="clp-appel-label">Nom de l'appel affiché</label></th>
+                        <td>
+                            <input type="text" class="regular-text" id="clp-appel-label" name="<?php echo esc_attr($o); ?>[appel_label]" value="<?php echo esc_attr($s['appel_label']); ?>">
+                            <p class="description">Utilisé dans les e-mails et messages affichés (défaut : le nom de l'appel ci-dessus). Ex. : « Purple — Pourtant couleur n°13 ».</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="clp-open">Ouverture du dépôt</label></th>
+                        <td><input type="text" class="regular-text" id="clp-open" placeholder="JJ/MM/AAAA HH:MM" name="<?php echo esc_attr($o); ?>[window_open]" value="<?php echo esc_attr($s['window_open']); ?>">
+                            <p class="description">Fuseau horaire de référence : Europe/Paris.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="clp-close">Clôture du dépôt</label></th>
+                        <td><input type="text" class="regular-text" id="clp-close" placeholder="JJ/MM/AAAA HH:MM" name="<?php echo esc_attr($o); ?>[window_close]" value="<?php echo esc_attr($s['window_close']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Barre de progression</th>
+                        <td><label><input type="checkbox" name="<?php echo esc_attr($o); ?>[show_progress]" value="1" <?php checked($s['show_progress'], '1'); ?>> Afficher la barre de progression des dépôts sur la page (nombre de dépôts / nombre de billets dans la billetterie HelloAsso)</label></td>
+                    </tr>
+                </table>
+
+                <h2>Catégories affichées (liste des présélections)</h2>
+                <table class="form-table">
+                    <?php foreach (self::subcategories() as $key => $def) : ?>
+                    <tr>
+                        <th scope="row"><label for="clp-cat-<?php echo esc_attr($key); ?>"><?php echo esc_html($key); ?></label></th>
+                        <td><input type="text" class="regular-text" id="clp-cat-<?php echo esc_attr($key); ?>" name="<?php echo esc_attr($o); ?>[cat_labels][<?php echo esc_attr($key); ?>]" value="<?php echo esc_attr($s['cat_labels'][$key] ?? $key); ?>">
+                            <p class="description">Affichée dans le microcode <code>[clp_preselection]</code> à la place du code de sous-catégorie.</p>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </table>
+
+                <h2>Libellés des sous-catégories</h2>
+                <table class="form-table">
+                    <?php foreach (self::label_keys() as $key => $label_key) : ?>
+                    <tr>
+                        <th scope="row"><label for="clp-<?php echo esc_attr($key); ?>"><?php echo esc_html(ucfirst(str_replace('_', ' ', $key))); ?></label></th>
+                        <td><input type="text" class="regular-text" id="clp-<?php echo esc_attr($key); ?>" name="<?php echo esc_attr($o); ?>[<?php echo esc_attr($label_key); ?>]" value="<?php echo esc_attr($s[$label_key]); ?>"></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </table>
+
+                <h2>Codes humains d'anonymisation (nommage des fichiers)</h2>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><label for="clp-codes-count">Taille de la liste de codes</label></th>
+                        <td>
+                            <input type="number" min="10" max="50000" id="clp-codes-count" name="<?php echo esc_attr($o); ?>[codes_count]" value="<?php echo esc_attr((string) $s['codes_count']); ?>">
+                            <p class="description">Mots français de 6 lettres échantillonnés dans <code>assets/mots-francais.json</code> (déposé dans le plugin ; remplaçable par le <code>words.json</code> complet du dépôt an-array-of-french-words, ~44 600 mots de 6 lettres). Le tirage d'un code se fait de préférence <strong>sans doublon</strong> avec les codes déjà attribués. Nom des fichiers déposés : <code>date-numero_ticket-code_humain.ext</code>.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Liste de codes</th>
+                        <td>
+                            <button type="button" class="button" id="clp-regen-codes">Régénérer la liste de codes</button>
+                            <span id="clp-regen-result" style="margin-left:0.5em;"></span>
+                            <p class="description">Actuellement <?php echo esc_html((string) count(CLP_Codes::list())); ?> code(s) en liste. Le test lit les réglages enregistrés : enregistrez d'abord avant de régénérer.</p>
+                            <script>
+                            (function () {
+                                var btn = document.getElementById('clp-regen-codes');
+                                var out = document.getElementById('clp-regen-result');
+                                if (!btn) { return; }
+                                btn.addEventListener('click', function () {
+                                    out.textContent = 'Génération…';
+                                    var fd = new FormData();
+                                    fd.append('action', 'clp_admin_regen_codes');
+                                    fd.append('nonce', <?php echo wp_json_encode(wp_create_nonce('clp_admin_regen_codes')); ?>);
+                                    fetch(<?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>, { method: 'POST', body: fd, credentials: 'same-origin' })
+                                        .then(function (r) { return r.json(); })
+                                        .then(function (data) { out.textContent = data.message || 'Erreur inconnue.'; })
+                                        .catch(function () { out.textContent = 'Erreur réseau.'; });
+                                });
+                            })();
+                            </script>
+                        </td>
+                    </tr>
+                </table>
+
+                <h2>HelloAsso</h2>
+                <table class="form-table">
+                    <tr><th scope="row">URL de l'API</th><td><input type="text" class="regular-text" name="<?php echo esc_attr($o); ?>[helloasso_api_url]" value="<?php echo esc_attr($s['helloasso_api_url']); ?>"></td></tr>
+                    <tr><th scope="row">Client ID</th><td><input type="text" class="regular-text" name="<?php echo esc_attr($o); ?>[helloasso_client_id]" value="<?php echo esc_attr($s['helloasso_client_id']); ?>"></td></tr>
+                    <tr><th scope="row">Client Secret</th><td><input type="password" class="regular-text" name="<?php echo esc_attr($o); ?>[helloasso_client_secret]" value="<?php echo esc_attr($s['helloasso_client_secret']); ?>"></td></tr>
+                    <tr><th scope="row">Slug de l'organisation</th><td><input type="text" class="regular-text" name="<?php echo esc_attr($o); ?>[helloasso_org_slug]" value="<?php echo esc_attr($s['helloasso_org_slug']); ?>"></td></tr>
+                    <tr>
+                        <th scope="row">Type de formulaire</th>
+                        <td>
+                            <select name="<?php echo esc_attr($o); ?>[helloasso_form_type]">
+                                <?php foreach (array('Event', 'Donation', 'Membership', 'PaymentForm', 'Shop', 'CrowdFunding', 'Checkout') as $type) : ?>
+                                    <option value="<?php echo esc_attr($type); ?>" <?php selected($s['helloasso_form_type'], $type); ?>><?php echo esc_html($type); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr><th scope="row">Slug de la billetterie (formulaire)</th><td><input type="text" class="regular-text" name="<?php echo esc_attr($o); ?>[helloasso_form_slug]" value="<?php echo esc_attr($s['helloasso_form_slug']); ?>"></td></tr>
+                    <tr>
+                        <th scope="row">Champ de vérification du ticket</th>
+                        <td>
+                            <select name="<?php echo esc_attr($o); ?>[helloasso_ticket_field]">
+                                <option value="item_id" <?php selected($s['helloasso_ticket_field'], 'item_id'); ?>>Numéro d'article acheté (ID item)</option>
+                                <option value="order_id" <?php selected($s['helloasso_ticket_field'], 'order_id'); ?>>Numéro de commande</option>
+                                <option value="custom_field" <?php selected($s['helloasso_ticket_field'], 'custom_field'); ?>>Champ personnalisé de la campagne</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Identification par e-mail</th>
+                        <td><label><input type="checkbox" name="<?php echo esc_attr($o); ?>[allow_email]" value="1" <?php checked($s['allow_email'], '1'); ?>> Les déposants peuvent aussi s'identifier avec l'adresse e-mail utilisée pour l'achat du billet HelloAsso (en plus du numéro de ticket)</label></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="clp-test-ids">Identifiants de test</label></th>
+                        <td>
+                            <textarea id="clp-test-ids" class="large-text" rows="3" name="<?php echo esc_attr($o); ?>[test_ids]"><?php echo esc_textarea($s['test_ids']); ?></textarea>
+                            <p class="description">Un n° de billet ou e-mail par ligne (ou séparés par virgule / point-virgule). Ces identifiants sont acceptés <strong>sans appeler l'API HelloAsso</strong> (commande fictive « TEST ») : pour retester le parcours de dépôt en recette. <strong>Laisser vide en production.</strong></p>
+                        </td>
+                    </tr>
+                </table>
+                <p>
+                    <button type="button" class="button" id="clp-test-ha">Tester la connexion à la billetterie</button>
+                    <span id="clp-test-ha-result" style="margin-left:0.5em;"></span>
+                </p>
+                <p class="description">Le test lit les réglages <strong>enregistrés</strong> : cliquez d'abord sur « Enregistrer les modifications » en bas de page.</p>
+                <script>
+                (function () {
+                    var btn = document.getElementById('clp-test-ha');
+                    var out = document.getElementById('clp-test-ha-result');
+                    if (!btn) { return; }
+                    btn.addEventListener('click', function () {
+                        out.textContent = 'Test en cours…';
+                        var fd = new FormData();
+                        fd.append('action', 'clp_admin_test_ha');
+                        fd.append('nonce', <?php echo wp_json_encode(wp_create_nonce('clp_admin_test_ha')); ?>);
+                        fetch(<?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>, { method: 'POST', body: fd, credentials: 'same-origin' })
+                            .then(function (r) { return r.json(); })
+                            .then(function (data) { out.textContent = data.message || 'Erreur inconnue.'; })
+                            .catch(function () { out.textContent = 'Erreur réseau.'; });
+                    });
+                })();
+                </script>
+
+                <h2>Dropbox et limites</h2>
+                <table class="form-table">
+                    <tr><th scope="row">Access Token Dropbox (recommandé : laisser vide si refresh token rempli)</th><td><input type="password" class="regular-text" name="<?php echo esc_attr($o); ?>[dropbox_token]" value="<?php echo esc_attr($s['dropbox_token']); ?>"><p class="description">Token généré (court, ~4 h). Préférable : remplir plutôt les 3 champs ci-dessous (App key / App secret / Refresh token) pour un renouvellement automatique permanent.</p></td></tr>
+                    <tr><th scope="row">App Key Dropbox (client ID)</th><td><input type="text" class="regular-text" name="<?php echo esc_attr($o); ?>[dropbox_client_id]" value="<?php echo esc_attr($s['dropbox_client_id']); ?>"><p class="description">App Console → ton app → Settings → « App key ».</p></td></tr>
+                    <tr><th scope="row">App Secret Dropbox (client secret)</th><td><input type="password" class="regular-text" name="<?php echo esc_attr($o); ?>[dropbox_client_secret]" value="<?php echo esc_attr($s['dropbox_client_secret']); ?>"><p class="description">App Console → ton app → Settings → « App secret ».</p></td></tr>
+                    <tr><th scope="row">Refresh Token Dropbox</th><td><input type="password" class="regular-text" name="<?php echo esc_attr($o); ?>[dropbox_refresh_token]" value="<?php echo esc_attr($s['dropbox_refresh_token']); ?>"><p class="description">Obtenu automatiquement via le formulaire « Échanger un code OAuth » ci-dessous (recommandé), ou manuellement via le flux OAuth offline — voir docs/parametrage.md §4.</p></td></tr>
+                    <tr>
+                        <th scope="row">Échanger un code OAuth (usage unique)</th>
+                        <td>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                                <input type="hidden" name="action" value="clp_admin_dropbox_exchange">
+                                <?php wp_nonce_field('clp_admin_dropbox_exchange'); ?>
+                                <input type="text" class="regular-text" name="oauth_code" placeholder="code reçu après autorisation (?code=…)"> 
+                                <button type="submit" class="button">Échanger contre le refresh token</button>
+                            </form>
+                            <p class="description">Ouvrez l'URL d'autorisation (App key renseignée, <code>token_access_type=offline</code>, redirect URI = <code><?php echo esc_html(home_url('/')); ?></code> — à enregistrer telle quelle dans l'app), autorisez, puis collez ici le <code>code</code> de l'URL de redirection. Le plugin enregistre automatiquement App key, App secret et le refresh token. Voir docs/parametrage.md §4.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Poids maximum par fichier (Mo)</th>
+                        <td><input type="number" min="1" max="500" name="<?php echo esc_attr($o); ?>[max_file_mb]" value="<?php echo esc_attr((string) $s['max_file_mb']); ?>"></td>
+                    </tr>
+                </table>
+
+                <h2>Message de réussite et confidentialité</h2>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">Envoi de l'e-mail de confirmation</th>
+                        <td><label><input type="checkbox" name="<?php echo esc_attr($o); ?>[email_enabled]" value="1" <?php checked($s['email_enabled'], '1'); ?>> Envoyer un e-mail de confirmation après chaque dépôt réussi (repli à l'écran si l'e-mail est introuvable)</label></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="clp-privacy">Avis affiché sur le formulaire (RGPD)</label></th>
+                        <td><textarea id="clp-privacy" class="large-text" rows="5" name="<?php echo esc_attr($o); ?>[privacy_notice]"><?php echo esc_textarea($s['privacy_notice']); ?></textarea></td>
+                    </tr>
+                </table>
+
+                <?php submit_button(); ?>
+            </form>
+        </div>
+        <?php
+    }
+}

@@ -10,6 +10,7 @@ class CLP_Shortcode
     public static function register(): void
     {
         add_shortcode(self::SHORTCODE, array(__CLASS__, 'render'));
+        add_shortcode('clp_verification_depot', array(__CLASS__, 'render_check'));
         add_shortcode('clp_preselection', array(__CLASS__, 'render_preselection'));
         add_action('wp_enqueue_scripts', array(__CLASS__, 'enqueue_assets'));
     }
@@ -20,7 +21,14 @@ class CLP_Shortcode
             return;
         }
         $post = get_post();
-        if (!$post instanceof WP_Post || !has_shortcode((string) ($post->post_content ?? ''), self::SHORTCODE)) {
+        if (!$post instanceof WP_Post) {
+            return;
+        }
+        $content = (string) ($post->post_content ?? '');
+        if (!has_shortcode($content, self::SHORTCODE)
+            && !has_shortcode($content, 'clp_verification_depot')
+            && !has_shortcode($content, 'clp_preselection')
+        ) {
             return;
         }
         wp_enqueue_style('clp-style', CLP_PLUGIN_URL . 'assets/clp.css', array(), CLP_VERSION);
@@ -128,14 +136,26 @@ class CLP_Shortcode
 
                 <p class="clp-privacy"><?php echo wp_kses_post($settings['privacy_notice']); ?></p>
             </form>
-            <div class="clp-check-wrap">
-                <button type="button" class="clp-check-toggle" id="clp-check-toggle">Vérification dépôt</button>
-                <div class="clp-check clp-hidden" id="clp-check">
-                    <label class="clp-label" for="clp-check-email">Adresse e-mail utilisée pour l'achat du billet HelloAsso</label>
-                    <input type="email" id="clp-check-email" class="clp-input">
-                    <button type="button" class="clp-btn" id="clp-check-btn">Envoyer la vérification</button>
-                    <p class="clp-message" id="clp-check-message" aria-live="polite"></p>
-                </div>
+        </div>
+        <?php
+        return (string) ob_get_clean();
+    }
+
+    public static function render_check($atts = array()): string
+    {
+        $atts = shortcode_atts(array(), $atts, 'clp_verification_depot');
+        static $instance = 0;
+        $instance++;
+        $uid = 'clp-check-' . $instance;
+        ob_start();
+        ?>
+        <div class="clp-check-wrap" id="<?php echo esc_attr($uid); ?>">
+            <button type="button" class="clp-check-toggle">Vérification dépôt</button>
+            <div class="clp-check clp-hidden">
+                <label class="clp-label" for="<?php echo esc_attr($uid); ?>-email">Adresse e-mail utilisée pour l'achat du billet HelloAsso</label>
+                <input type="email" id="<?php echo esc_attr($uid); ?>-email" class="clp-input clp-check-email" required>
+                <button type="button" class="clp-btn clp-check-btn">Envoyer la vérification</button>
+                <p class="clp-message clp-check-message" aria-live="polite"></p>
             </div>
         </div>
         <?php

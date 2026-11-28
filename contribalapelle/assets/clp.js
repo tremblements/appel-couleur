@@ -1,9 +1,60 @@
 (function () {
     'use strict';
 
+    function initChecks() {
+        var wraps = document.querySelectorAll('.clp-check-wrap');
+        for (var i = 0; i < wraps.length; i++) {
+            (function (wrap) {
+                var toggle = wrap.querySelector('.clp-check-toggle');
+                var box = wrap.querySelector('.clp-check');
+                var email = wrap.querySelector('.clp-check-email');
+                var btn = wrap.querySelector('.clp-check-btn');
+                var msg = wrap.querySelector('.clp-check-message');
+                if (toggle && box) {
+                    toggle.addEventListener('click', function () {
+                        box.classList.toggle('clp-hidden');
+                    });
+                }
+                if (!btn) {
+                    return;
+                }
+                btn.addEventListener('click', function () {
+                    if (msg) { msg.textContent = ''; msg.className = 'clp-message clp-check-message'; }
+                    var fd = new FormData();
+                    fd.append('action', 'clp_check_deposit');
+                    fd.append('nonce', CLP_DATA.nonce_check);
+                    fd.append('email', email ? email.value : '');
+                    fetch(CLP_DATA.ajax_url, { method: 'POST', body: fd, credentials: 'same-origin' })
+                        .then(function (r) {
+                            return r.text().then(function (txt) {
+                                var data;
+                                try { data = JSON.parse(txt); } catch (e) { data = { success: false, message: 'Erreur serveur inattendue. Réessayez plus tard.' }; }
+                                return data;
+                            });
+                        })
+                        .then(function (data) {
+                            data = data || {};
+                            if (msg) {
+                                msg.textContent = data.message || (data.success ? 'Un e-mail vient de vous être envoyé.' : "Échec de l'envoi.");
+                                msg.classList.toggle('clp-ok', !!data.success);
+                                msg.classList.toggle('clp-err', !data.success);
+                            }
+                        })
+                        .catch(function (err) {
+                            if (msg) { msg.textContent = 'Erreur réseau : ' + (err && err.message ? err.message : 'inconnue') + ' — rechargez la page (Ctrl+F5).'; msg.classList.add('clp-err'); }
+                        });
+                });
+            })(wraps[i]);
+        }
+    }
+
     function init() {
+        if (typeof CLP_DATA === 'undefined') {
+            return;
+        }
+        initChecks();
         var form = document.getElementById('clp-form');
-        if (!form || typeof CLP_DATA === 'undefined') {
+        if (!form) {
             return;
         }
 
@@ -73,47 +124,6 @@
         subSelect.addEventListener('change', function () {
             updateFileHint();
         });
-
-        var checkToggle = document.getElementById('clp-check-toggle');
-        var checkBox = document.getElementById('clp-check');
-        var checkEmail = document.getElementById('clp-check-email');
-        var checkBtn = document.getElementById('clp-check-btn');
-        var checkMsg = document.getElementById('clp-check-message');
-
-        if (checkToggle) {
-            checkToggle.addEventListener('click', function () {
-                checkBox.classList.toggle('clp-hidden');
-            });
-        }
-
-        if (checkBtn) {
-            checkBtn.addEventListener('click', function () {
-                if (checkMsg) { checkMsg.textContent = ''; checkMsg.className = 'clp-message'; }
-                var fd = new FormData();
-                fd.append('action', 'clp_check_deposit');
-                fd.append('nonce', CLP_DATA.nonce_check);
-                fd.append('email', checkEmail.value);
-                fetch(CLP_DATA.ajax_url, { method: 'POST', body: fd, credentials: 'same-origin' })
-                    .then(function (r) {
-                        return r.text().then(function (txt) {
-                            var data;
-                            try { data = JSON.parse(txt); } catch (e) { data = { success: false, message: 'Erreur serveur inattendue. Réessayez plus tard.' }; }
-                            return data;
-                        });
-                    })
-                    .then(function (data) {
-                        data = data || {};
-                        if (checkMsg) {
-                            checkMsg.textContent = data.message || (data.success ? 'Un e-mail vient de vous être envoyé.' : "Échec de l'envoi.");
-                            checkMsg.classList.toggle('clp-ok', !!data.success);
-                            checkMsg.classList.toggle('clp-err', !data.success);
-                        }
-                    })
-                    .catch(function (err) {
-                        if (checkMsg) { checkMsg.textContent = 'Erreur réseau : ' + (err && err.message ? err.message : 'inconnue') + ' — rechargez la page (Ctrl+F5).'; checkMsg.classList.add('clp-err'); }
-                    });
-            });
-        }
 
         verifyBtn.addEventListener('click', function () {
             setMessage(verifyMsg, '', true);

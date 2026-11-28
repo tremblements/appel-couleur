@@ -63,6 +63,15 @@ est rangé dans Dropbox après vérification du ticket.
    <!-- /wp:shortcode -->
    ```
 
+   Trois shortcodes sont disponibles, à placer où vous voulez dans la page (éventuellement dans des
+   sections différentes) :
+
+   | Shortcode | Rôle |
+   | --- | --- |
+   | `[contribalapelle]` | Bouton « Je dépose » + formulaire de dépôt (identifiant, catégorie, fichier) + barre de progression |
+   | `[clp_verification_depot]` | Bouton « Vérification dépôt » : envoie par e-mail le code d'anonymisation et le nom du fichier déposé |
+   | `[clp_preselection]` | Liste des contributions présélectionnées (code + catégorie), cochable dans le backoffice |
+
    Ne jamais appliquer le format inline **« Code »** au texte `[contribalapelle]` : le HTML généré serait
    enfermé dans `<code>…</code>`, et comme un `<div>` ne peut pas vivre dans un `<p>`, le navigateur
    rejetterait le formulaire hors du bloc de contenu (affichage pleine largeur, non stylé).
@@ -83,7 +92,7 @@ contribalapelle/
 │   ├── class-clp-helloasso.php    # API HelloAsso v5 (OAuth2, vérification ticket)
 │   ├── class-clp-dropbox.php      # API Dropbox (upload, suppression, chemins)
 │   ├── class-clp-upload.php       # AJAX vérification + dépôt, validations, e-mail
-│   ├── class-clp-shortcode.php    # shortcode [contribalapelle] (formulaire public)
+│   ├── class-clp-shortcode.php    # shortcodes [contribalapelle] [clp_verification_depot] [clp_preselection]
 │   └── class-clp-admin.php        # page admin de suivi des dépôts
 ├── assets/clp.css, clp.js
 └── uninstall.php                  # supprime tables et options à la désinstallation

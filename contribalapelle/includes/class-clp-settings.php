@@ -122,6 +122,9 @@ class CLP_Settings
             'allow_email' => '1',
             'test_ids' => '',
             'dropbox_token' => '',
+            'dropbox_client_id' => '',
+            'dropbox_client_secret' => '',
+            'dropbox_refresh_token' => '',
             'max_file_mb' => 25,
             'email_enabled' => '1',
             'privacy_notice' => "En déposant une contribution, vous acceptez que votre identifiant HelloAsso (numéro de ticket ou adresse e-mail utilisée pour l'achat), le type de contribution, la date de dépôt et votre adresse e-mail soient traités par l'association éditrice de la revue Pourtant, pour l'organisation de l'appel à contributions (intérêt légitime). Ces données sont conservées jusqu'à la publication du numéro, puis supprimées. L'inscription via la billetterie HelloAsso relève de la politique de confidentialité de HelloAsso.",
@@ -252,7 +255,7 @@ class CLP_Settings
             'label_poeme_long', 'label_poeme_court', 'label_photographie', 'label_illustration',
             'helloasso_api_url', 'helloasso_client_id', 'helloasso_client_secret',
             'helloasso_org_slug', 'helloasso_form_type', 'helloasso_form_slug',
-            'helloasso_ticket_field', 'dropbox_token',
+            'helloasso_ticket_field', 'dropbox_token', 'dropbox_client_id', 'dropbox_client_secret', 'dropbox_refresh_token',
         );
         foreach ($text_keys as $key) {
             if (array_key_exists($key, $input)) {
@@ -463,7 +466,10 @@ class CLP_Settings
 
                 <h2>Dropbox et limites</h2>
                 <table class="form-table">
-                    <tr><th scope="row">Access Token Dropbox</th><td><input type="password" class="regular-text" name="<?php echo esc_attr($o); ?>[dropbox_token]" value="<?php echo esc_attr($s['dropbox_token']); ?>"></td></tr>
+                    <tr><th scope="row">Access Token Dropbox (recommandé : laisser vide si refresh token rempli)</th><td><input type="password" class="regular-text" name="<?php echo esc_attr($o); ?>[dropbox_token]" value="<?php echo esc_attr($s['dropbox_token']); ?>"><p class="description">Token généré (court, ~4 h). Préférable : remplir plutôt les 3 champs ci-dessous (App key / App secret / Refresh token) pour un renouvellement automatique permanent.</p></td></tr>
+                    <tr><th scope="row">App Key Dropbox (client ID)</th><td><input type="text" class="regular-text" name="<?php echo esc_attr($o); ?>[dropbox_client_id]" value="<?php echo esc_attr($s['dropbox_client_id']); ?>"><p class="description">App Console → ton app → Settings → « App key ».</p></td></tr>
+                    <tr><th scope="row">App Secret Dropbox (client secret)</th><td><input type="password" class="regular-text" name="<?php echo esc_attr($o); ?>[dropbox_client_secret]" value="<?php echo esc_attr($s['dropbox_client_secret']); ?>"><p class="description">App Console → ton app → Settings → « App secret ».</p></td></tr>
+                    <tr><th scope="row">Refresh Token Dropbox</th><td><input type="password" class="regular-text" name="<?php echo esc_attr($o); ?>[dropbox_refresh_token]" value="<?php echo esc_attr($s['dropbox_refresh_token']); ?>"><p class="description">Obtenu via le flux OAuth offline : ajoutez une redirect URI (ex. <code>https://www.pourtant.fr/</code>) dans l'app, ouvrez <code>https://www.dropbox.com/oauth2/authorize?client_id=APP_KEY&amp;response_type=code&amp;token_access_type=offline&amp;redirect_uri=https://www.pourtant.fr/</code>, autorisez, copiez le <code>code</code> de l'URL de redirection, puis échangez-le : <code>curl https://api.dropbox.com/oauth2/token -d code=CODE -d grant_type=authorization_code -d client_id=APP_KEY -d client_secret=APP_SECRET -d redirect_uri=https://www.pourtant.fr/</code> → collez ici le <code>refresh_token</code> de la réponse. Voir docs/parametrage.md §4.</p></td></tr>
                     <tr>
                         <th scope="row">Poids maximum par fichier (Mo)</th>
                         <td><input type="number" min="1" max="500" name="<?php echo esc_attr($o); ?>[max_file_mb]" value="<?php echo esc_attr((string) $s['max_file_mb']); ?>"></td>

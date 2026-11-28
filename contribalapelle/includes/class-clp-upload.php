@@ -521,40 +521,50 @@ class CLP_Upload
         return is_string($clean) ? substr($clean, 0, 64) : '';
     }
 
-    private static function send_deposit_receipt(string $to, array $row): bool
+    private static function send_deposit_receipt(string $to, string $name, array $row): bool
     {
+        $appel = CLP_Settings::appel_label();
+        $hello = $name !== '' ? 'Bonjour ' . $name . ',' : 'Bonjour,';
         $lines = array(
-            'Bonjour,',
+            $hello,
             '',
-            "Vous avez bien déposé une contribution pour l'appel en cours.",
+            'Vous avez bien déposé une contribution pour l\'appel « ' . $appel . ' ».',
             '',
             'Nom anonymisé du fichier déposé : ' . basename((string) ($row['dropbox_path'] ?? '')),
-            "Code d'anonymisation qui vous a été attribué : " . (string) ($row['human_code'] ?? ''),
+            '',
+            'Code d\'anonymisation qui vous a été attribué : ' . (string) ($row['human_code'] ?? ''),
+            '',
             'Catégorie : ' . CLP_Settings::subcategory_label((string) ($row['subcategory'] ?? '')),
+            '',
             'Date du dépôt : ' . (string) ($row['deposited_at'] ?? '') . ' (heure de Paris)',
             '',
-            "L'équipe de la revue",
+            'L\'équipe de la revue Pourtant',
         );
-        return (bool) wp_mail($to, "Votre dépôt — confirmation et code d'anonymisation", implode("\n", $lines));
+        return (bool) wp_mail($to, 'Votre dépôt pour l\'appel « ' . $appel . ' » — confirmation et code d\'anonymisation', implode("\n", $lines));
     }
 
-    private static function send_confirmation(string $to, string $uploaded_name, string $subcategory_label, string $anon_name, bool $replaced): bool
+    private static function send_confirmation(string $to, string $name, string $uploaded_name, string $subcategory_label, string $anon_name, bool $replaced): bool
     {
+        $appel = CLP_Settings::appel_label();
+        $hello = $name !== '' ? 'Bonjour ' . $name . ',' : 'Bonjour,';
         $lines = array(
-            'Bonjour,',
+            $hello,
             '',
             'Votre contribution a bien été déposée. Merci !',
             '',
             'Document déposé : ' . $uploaded_name,
+            '',
             'Nature de la contribution : ' . $subcategory_label,
+            '',
             'Enregistré dans notre espace sous le nom anonymisé : ' . $anon_name,
         );
         if ($replaced) {
+            $lines[] = '';
             $lines[] = 'Ce dépôt remplace votre contribution précédente, qui a été effacée.';
         }
         $lines[] = '';
-        $lines[] = "L'équipe de la revue";
-        return (bool) wp_mail($to, 'Votre contribution a bien été déposée', implode("\n", $lines));
+        $lines[] = 'L\'équipe de la revue Pourtant';
+        return (bool) wp_mail($to, 'Votre dépôt pour l\'appel « ' . $appel . ' »', implode("\n", $lines));
     }
 
     private static function window_message(array $window): string

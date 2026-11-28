@@ -109,8 +109,8 @@
                             checkMsg.classList.toggle('clp-err', !data.success);
                         }
                     })
-                    .catch(function () {
-                        if (checkMsg) { checkMsg.textContent = 'Une erreur est survenue. Réessayez plus tard.'; checkMsg.classList.add('clp-err'); }
+                    .catch(function (err) {
+                        if (checkMsg) { checkMsg.textContent = 'Erreur réseau : ' + (err && err.message ? err.message : 'inconnue') + ' — rechargez la page (Ctrl+F5).'; checkMsg.classList.add('clp-err'); }
                     });
             });
         }
@@ -137,8 +137,8 @@
                         setMessage(verifyMsg, data.message || 'Identifiant invalide.', false);
                     }
                 })
-                .catch(function () {
-                    setMessage(verifyMsg, 'Une erreur est survenue. Réessayez plus tard.', false);
+                .catch(function (err) {
+                    setMessage(verifyMsg, 'Erreur réseau : ' + (err && err.message ? err.message : 'inconnue') + ' — rechargez la page (Ctrl+F5).', false);
                 });
         });
 
@@ -195,8 +195,8 @@
                         setMessage(depositMsg, data.message || 'Le dépôt a été refusé.', false);
                     }
                 })
-                .catch(function () {
-                    setMessage(depositMsg, 'Une erreur est survenue. Réessayez plus tard.', false);
+                .catch(function (err) {
+                    setMessage(depositMsg, 'Erreur réseau : ' + (err && err.message ? err.message : 'inconnue') + ' — rechargez la page (Ctrl+F5).', false);
                 })
                 .finally(function () {
                     submitBtn.disabled = false;

@@ -120,7 +120,7 @@ class CLP_Shortcode
                     <label class="clp-label" for="clp-file">Fichier</label>
                     <input type="file" id="clp-file" name="file" class="clp-file" required<?php echo $disabled; ?>>
                     <p class="clp-hint" id="clp-file-hint"></p>
-                    <label class="clp-confirm clp-hidden" id="clp-confirm-wrap"><input type="checkbox" id="clp-confirm-replace" value="1"<?php echo $disabled; ?>> J'ai déjà déposé une contribution avec ce billet : je confirme vouloir l'effacer et la remplacer par ce nouveau fichier.</label>
+                    <label class="clp-confirm clp-hidden" id="clp-confirm-wrap"><input type="checkbox" id="clp-confirm-replace" value="1"<?php echo $disabled; ?>> J'ai déjà déposé une contribution avec ce billet : je confirme vouloir l'effacer et la remplacer par ce nouveau fichier (la catégorie peut changer).</label>
                     <button type="submit" class="clp-btn clp-submit" id="clp-submit"<?php echo $disabled; ?>>Valider le dépôt</button>
                     <p class="clp-message" id="clp-deposit-message" aria-live="polite"></p>
                     <p class="clp-message clp-detail" id="clp-deposit-detail" aria-live="polite"></p>

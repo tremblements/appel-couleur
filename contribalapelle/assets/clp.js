@@ -22,7 +22,6 @@
         var depositDetail = document.getElementById('clp-deposit-detail');
         var confirmWrap = document.getElementById('clp-confirm-wrap');
         var confirmBox = document.getElementById('clp-confirm-replace');
-        var lockedSubcategory = '';
         var alreadyDeposited = false;
 
         if (toggle) {
@@ -50,12 +49,7 @@
                 opt.textContent = sub.label;
                 subSelect.appendChild(opt);
             });
-            if (lockedSubcategory !== '') {
-                subSelect.value = lockedSubcategory;
-                subSelect.disabled = true;
-            } else {
-                subSelect.disabled = false;
-            }
+            subSelect.disabled = !!CLP_DATA.read_only;
             updateFileHint();
         }
 
@@ -90,9 +84,15 @@
                 fd.append('nonce', CLP_DATA.nonce_check);
                 fd.append('email', checkEmail.value);
                 fetch(CLP_DATA.ajax_url, { method: 'POST', body: fd, credentials: 'same-origin' })
-                    .then(function (r) { return r.json().then(function (data) { return { status: r.status, data: data }; }); })
-                    .then(function (res) {
-                        var data = res.data || {};
+                    .then(function (r) {
+                        return r.text().then(function (txt) {
+                            var data;
+                            try { data = JSON.parse(txt); } catch (e) { data = { success: false, message: 'Erreur serveur inattendue. Réessayez plus tard.' }; }
+                            return data;
+                        });
+                    })
+                    .then(function (data) {
+                        data = data || {};
                         if (checkMsg) {
                             checkMsg.textContent = data.message || (data.success ? 'Un e-mail vient de vous être envoyé.' : "Échec de l'envoi.");
                             checkMsg.classList.toggle('clp-ok', !!data.success);
@@ -117,9 +117,6 @@
                     var data = res.data || {};
                     if (data.success && data.valid) {
                         alreadyDeposited = !!data.already_deposited;
-                        if (data.already_deposited && data.subcategory) {
-                            lockedSubcategory = data.subcategory;
-                        }
                         fillSubcategories();
                         if (confirmWrap) {
                             confirmWrap.classList.toggle('clp-hidden', !alreadyDeposited);

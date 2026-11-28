@@ -17,60 +17,73 @@ class CLP_Upload
 
     public static function handle_check_deposit(): void
     {
-        check_ajax_referer('clp_check_deposit', 'nonce');
+        $nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'clp_check_deposit')) {
+            CLP_DB::log('check', '', 'refused', 'nonce-invalide', 'session expirée : recharger la page');
+            wp_send_json(array('success' => false, 'message' => 'Session expirée : rechargez la page (Ctrl+F5) puis réessayez.'), 403);
+        }
+
         $raw = isset($_POST['email']) ? wp_unslash($_POST['email']) : '';
         $email = is_string($raw) ? sanitize_email($raw) : '';
         if ($email === '') {
             wp_send_json(array('success' => false, 'message' => 'Merci de saisir votre adresse e-mail.'), 400);
         }
 
-        $throttle_key = 'clp_check_' . md5(strtolower($email));
-        if (get_transient($throttle_key) !== false) {
-            wp_send_json(array('success' => false, 'message' => "Un e-mail vient déjà d'être envoyé il y a moins d'une minute. Réessayez dans un instant."), 429);
-        }
-        set_transient($throttle_key, '1', 60);
-
-        $candidates = array();
-        if (in_array($email, self::test_identifiers(), true)) {
-            $candidates = array(array('ticket' => 'test' . substr(md5(strtolower($email)), 0, 10), 'order_id' => 'TEST', 'email' => $email));
-        } else {
-            $candidates = CLP_HelloAsso::find_by_email($email);
-        }
-
-        $found = null;
-        $found_name = '';
-        foreach ($candidates as $candidate) {
-            if (!is_array($candidate) || empty($candidate['ticket'])) {
-                continue;
+        try {
+            $throttle_key = 'clp_check_' . md5(strtolower($email));
+            if (get_transient($throttle_key) !== false) {
+                wp_send_json(array('success' => false, 'message' => "Un e-mail vient déjà d'être envoyé il y a moins d'une minute. Réessayez dans un instant."), 429);
             }
-            $row = CLP_DB::get_ticket((string) $candidate['ticket']);
-            if (is_array($row) && $row['status'] === 'deposited') {
-                $found = $row;
-                $found_name = isset($candidate['name']) ? (string) $candidate['name'] : '';
-                break;
-            }
-        }
+            set_transient($throttle_key, '1', 60);
 
-        if ($found === null) {
-            CLP_DB::log('check', $email, 'refused', 'aucun-depot', 'vérification de dépôt');
+            $candidates = array();
+            if (in_array($email, self::test_identifiers(), true)) {
+                $candidates = array(array('ticket' => 'test' . substr(md5(strtolower($email)), 0, 10), 'order_id' => 'TEST', 'email' => $email, 'name' => ''));
+            } else {
+                $candidates = CLP_HelloAsso::find_by_email($email);
+            }
+
+            $found = null;
+            $found_name = '';
+            foreach ($candidates as $candidate) {
+                if (!is_array($candidate) || empty($candidate['ticket'])) {
+                    continue;
+                }
+                $row = CLP_DB::get_ticket((string) $candidate['ticket']);
+                if (is_array($row) && $row['status'] === 'deposited') {
+                    $found = $row;
+                    $found_name = isset($candidate['name']) ? (string) $candidate['name'] : '';
+                    break;
+                }
+            }
+
+            if ($found === null) {
+                CLP_DB::log('check', $email, 'refused', 'aucun-depot', 'vérification de dépôt');
+                wp_send_json(array(
+                    'success' => false,
+                    'message' => "Aucun dépôt trouvé pour cette adresse (billet non payé, ou aucun dépôt effectué avec cette adresse).",
+                ), 404);
+            }
+
+            if ($found_name !== '' && empty($found['payer_name'])) {
+                CLP_DB::set_payer_name((string) $found['ticket'], $found_name);
+                $found['payer_name'] = $found_name;
+            }
+            $to = !empty($found['payer_email']) ? (string) $found['payer_email'] : $email;
+            $sent = self::send_deposit_receipt($to, (string) ($found['payer_name'] ?? ''), $found);
+            CLP_DB::log('check', (string) $found['ticket'], 'success', $sent ? 'mail-envoye' : 'echec-envoi', 'vérification de dépôt');
+            wp_send_json(array(
+                'success' => true,
+                'message' => sprintf("Un e-mail vient de vous être envoyé à %s.", $to),
+                'email_sent' => $sent,
+            ));
+        } catch (Throwable $e) {
+            CLP_DB::log('check', $email, 'refused', 'erreur-interne', $e->getMessage());
             wp_send_json(array(
                 'success' => false,
-                'message' => "Aucun dépôt trouvé pour cette adresse (billet non payé, ou aucun dépôt effectué avec cette adresse).",
-            ), 404);
+                'message' => 'Une erreur est survenue côté serveur. Réessayez plus tard (le détail est dans le journal admin).',
+            ), 500);
         }
-
-        if ($found_name !== '' && empty($found['payer_name'])) {
-            CLP_DB::set_payer_name((string) $found['ticket'], $found_name);
-            $found['payer_name'] = $found_name;
-        }
-        $to = !empty($found['payer_email']) ? (string) $found['payer_email'] : $email;
-        $sent = self::send_deposit_receipt($to, (string) ($found['payer_name'] ?? ''), $found);
-        CLP_DB::log('check', (string) $found['ticket'], 'success', $sent ? 'mail-envoye' : 'echec-envoi', 'vérification de dépôt');
-        wp_send_json(array(
-            'success' => true,
-            'message' => sprintf("Un e-mail vient de vous être envoyé à %s.", $to),
-            'email_sent' => $sent,
-        ));
     }
 
     public static function handle_verify(): void
@@ -273,15 +286,6 @@ class CLP_Upload
             $row = CLP_DB::get_ticket($ticket);
             $replacement = is_array($row) && $row['status'] === 'deposited';
 
-            if ($replacement && (string) $row['subcategory'] !== $subcategory) {
-                CLP_DB::log('deposit', $ticket, 'refused', 'seconde-contribution', $subcategory);
-                return array(array(
-                    'success' => false,
-                    'reason' => 'seconde-contribution',
-                    'message' => "Cet identifiant a déjà une contribution déposée : seul le remplacement du même type de contribution est autorisé.",
-                ), 409);
-            }
-
             if ($replacement) {
                 $raw_confirm = isset($_POST['confirm_replace']) ? wp_unslash($_POST['confirm_replace']) : '';
                 if ($raw_confirm !== '1') {
@@ -345,10 +349,14 @@ class CLP_Upload
             $upload = CLP_Dropbox::upload($temp_file, $target);
             if (!$upload['success']) {
                 CLP_DB::log('deposit', $input, 'refused', 'dropbox-indisponible', (string) $upload['error']);
+                $msg = "Le service de dépôt est indisponible pour le moment. Réessayez plus tard : votre billet n'a pas été consommé.";
+                if ((string) $upload['error'] === 'dropbox-token-expire') {
+                    $msg = "Le jeton Dropbox a expiré ou est invalide : régénérez-le dans la Dropbox App Console (expiration « No expiration » si proposée) et collez-le dans Réglages → Contribalapelle. Votre billet n'a pas été consommé.";
+                }
                 return array(array(
                     'success' => false,
                     'reason' => 'dropbox-indisponible',
-                    'message' => "Le service de dépôt est indisponible pour le moment. Réessayez plus tard : votre billet n'a pas été consommé.",
+                    'message' => $msg,
                 ), 502);
             }
 

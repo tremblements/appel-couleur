@@ -21,7 +21,7 @@ class CLP_Dropbox
 
         $args = array(
             'path' => self::normalize_path($dropbox_path),
-            'mode' => 'overwrite',
+            'mode' => array('.tag' => 'overwrite'),
             'autorename' => false,
             'mute' => false,
             'strict_conflict' => false,
@@ -43,6 +43,10 @@ class CLP_Dropbox
 
         $code = wp_remote_retrieve_response_code($response);
         $body = json_decode(wp_remote_retrieve_body($response), true);
+
+        if ($code === 401 || $code === 403) {
+            return array('success' => false, 'error' => 'dropbox-token-expire');
+        }
 
         if ($code >= 200 && $code < 300 && is_array($body) && !empty($body['name'])) {
             return array('success' => true, 'path' => isset($body['path_display']) ? (string) $body['path_display'] : self::normalize_path($dropbox_path));

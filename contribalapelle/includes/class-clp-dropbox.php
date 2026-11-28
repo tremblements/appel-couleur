@@ -119,6 +119,7 @@ class CLP_Dropbox
 
     private static function call(string $url, array $request_args): array
     {
+        $request_args['method'] = 'POST';
         $token = self::access_token();
         if ($token === '') {
             return array('error' => 'dropbox-non-configure', 'code' => 0, 'body' => null);

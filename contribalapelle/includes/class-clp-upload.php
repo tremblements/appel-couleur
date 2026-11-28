@@ -78,7 +78,7 @@ class CLP_Upload
                 'email_sent' => $sent,
             ));
         } catch (Throwable $e) {
-            CLP_DB::log('check', $email, 'refused', 'erreur-interne', $e->getMessage());
+            CLP_DB::log('check', $email, 'refused', 'erreur-interne', $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
             wp_send_json(array(
                 'success' => false,
                 'message' => 'Une erreur est survenue côté serveur. Réessayez plus tard (le détail est dans le journal admin).',
@@ -91,7 +91,7 @@ class CLP_Upload
         try {
             self::do_handle_verify();
         } catch (Throwable $e) {
-            CLP_DB::log('verify', '', 'refused', 'erreur-interne', $e->getMessage());
+            CLP_DB::log('verify', '', 'refused', 'erreur-interne', $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
             wp_send_json(array('success' => false, 'reason' => 'erreur-interne', 'message' => 'Erreur serveur : ' . $e->getMessage()), 500);
         }
     }
@@ -168,7 +168,7 @@ class CLP_Upload
         try {
             self::do_handle_deposit();
         } catch (Throwable $e) {
-            CLP_DB::log('deposit', '', 'refused', 'erreur-interne', $e->getMessage());
+            CLP_DB::log('deposit', '', 'refused', 'erreur-interne', $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
             wp_send_json(array('success' => false, 'reason' => 'erreur-interne', 'message' => 'Erreur serveur : ' . $e->getMessage()), 500);
         }
     }
@@ -424,7 +424,7 @@ class CLP_Upload
                 'email_sent' => $email_sent,
             ), 200);
         } catch (Throwable $e) {
-            CLP_DB::log('deposit', $input, 'refused', 'erreur-interne', $e->getMessage());
+            CLP_DB::log('deposit', $input, 'refused', 'erreur-interne', $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
             return array(array(
                 'success' => false,
                 'reason' => 'erreur-interne',

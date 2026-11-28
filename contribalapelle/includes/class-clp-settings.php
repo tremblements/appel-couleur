@@ -110,7 +110,8 @@ class CLP_Settings
             'label_haiku' => 'Haïku (5-7-5)',
             'label_poeme_long' => 'Poème long (40 à 100 lignes)',
             'label_poeme_court' => 'Poème court',
-            'label_image' => 'Image (photographie ou illustration)',
+            'label_photographie' => 'Photographie',
+            'label_illustration' => 'Illustration',
             'helloasso_api_url' => 'https://api.helloasso.com/v5',
             'helloasso_client_id' => '',
             'helloasso_client_secret' => '',
@@ -139,12 +140,13 @@ class CLP_Settings
     public static function subcategories(): array
     {
         return array(
-            'fiction_500' => array('type' => 'texte', 'folder' => 'fiction'),
-            'fiction_250' => array('type' => 'texte', 'folder' => 'fiction'),
-            'haiku' => array('type' => 'texte', 'folder' => 'poesie'),
-            'poeme_long' => array('type' => 'texte', 'folder' => 'poesie'),
-            'poeme_court' => array('type' => 'texte', 'folder' => 'poesie'),
-            'image' => array('type' => 'image', 'folder' => 'image'),
+            'fiction_500' => array('type' => 'texte', 'folder' => 'fiction_500'),
+            'fiction_250' => array('type' => 'texte', 'folder' => 'fiction_250'),
+            'haiku' => array('type' => 'texte', 'folder' => 'haiku'),
+            'poeme_long' => array('type' => 'texte', 'folder' => 'poeme_long'),
+            'poeme_court' => array('type' => 'texte', 'folder' => 'poeme_court'),
+            'photographie' => array('type' => 'image', 'folder' => 'photographie'),
+            'illustration' => array('type' => 'image', 'folder' => 'illustration'),
         );
     }
 
@@ -156,7 +158,8 @@ class CLP_Settings
             'haiku' => 'label_haiku',
             'poeme_long' => 'label_poeme_long',
             'poeme_court' => 'label_poeme_court',
-            'image' => 'label_image',
+            'photographie' => 'label_photographie',
+            'illustration' => 'label_illustration',
         );
     }
 
@@ -246,7 +249,7 @@ class CLP_Settings
         }
         $text_keys = array(
             'appel_name', 'appel_label', 'label_fiction_500', 'label_fiction_250', 'label_haiku',
-            'label_poeme_long', 'label_poeme_court', 'label_image',
+            'label_poeme_long', 'label_poeme_court', 'label_photographie', 'label_illustration',
             'helloasso_api_url', 'helloasso_client_id', 'helloasso_client_secret',
             'helloasso_org_slug', 'helloasso_form_type', 'helloasso_form_slug',
             'helloasso_ticket_field', 'dropbox_token',

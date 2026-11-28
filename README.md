@@ -24,9 +24,9 @@ est rangé dans Dropbox après vérification du ticket.
   explicite** de la personne (case à cocher, cahier V3 §9). Aucun second dépôt d'un
   autre type. (Si plusieurs billets ont été achetés avec la même adresse e-mail, l'e-mail désigne le
   premier billet non encore déposé.)
-- **Sous-catégories** : fiction 500 mots, fiction 250 mots, haïku, poème long, poème court (textes :
-  `.odt`, `.docx`, `.pdf`) et image (`.jpg`, `.jpeg`, `.png`, `.tif`, `.tiff`), poids maximum 25 Mo par défaut.
-- **Rangement Dropbox** : `Depots-<appel>/fiction/`, `Depots-<appel>/poesie/`, `Depots-<appel>/image/` ;
+- **Sous-catégories** : fiction 500 mots, fiction 250 mots, haïku, poème long, poème court (`.odt`, `.docx`, `.pdf`), **photographie** et
+  **illustration** (`.jpg`, `.jpeg`, `.png`, `.tif`, `.tiff`), poids maximum 25 Mo par défaut.
+- **Rangement Dropbox** : `Depots-<appel>/<catégorie>/` (un dossier par catégorie : `fiction_500`, `fiction_250`, `haiku`, `poeme_long`, `poeme_court`, `photographie`, `illustration`) ;
   nom de fichier anonymisé `<aammjj>-<n° de ticket>-<code_humain>.<ext>` (date de dépôt, heure de Paris).
   Le `code_humain` est un mot français de 6 lettres tiré dans une liste échantillonnée dans
   `contribalapelle/assets/mots-francais.json` (ce fichier peut être remplacé par le `words.json` complet

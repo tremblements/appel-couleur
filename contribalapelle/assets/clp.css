@@ -13,8 +13,9 @@
 
 .clp-toggle {
     margin: 1.2rem 0;
-    padding: 0.85rem 1.8rem;
-    font-size: 1.1rem;
+    padding: 1rem 2.2rem;
+    font-size: 1.2rem;
+    border-radius: 12px;
     cursor: pointer;
 }
 
@@ -24,6 +25,7 @@
     border-color: #ccc;
     color: #777;
     cursor: not-allowed;
+    border-radius: 12px;
 }
 
 .clp-check-wrap {
@@ -73,7 +75,8 @@
 }
 
 .clp-btn {
-    padding: 0.45rem 1.1rem;
+    padding: 0.55rem 1.3rem;
+    border-radius: 12px;
     cursor: pointer;
 }
 
@@ -130,8 +133,9 @@
 }
 
 .clp-check-toggle {
-    padding: 0.5rem 1.1rem;
-    font-size: 0.9rem;
+    padding: 0.65rem 1.4rem;
+    font-size: 1rem;
+    border-radius: 12px;
     cursor: pointer;
 }
 

@@ -14,7 +14,6 @@
         var verifyMsg = document.getElementById('clp-verify-message');
         var stepCat = document.getElementById('clp-step-cat');
         var stepFile = document.getElementById('clp-step-file');
-        var typeRadios = form.querySelectorAll('input[name="clp-type"]');
         var subSelect = document.getElementById('clp-subcategory');
         var toFileBtn = document.getElementById('clp-to-file');
         var fileInput = document.getElementById('clp-file');
@@ -39,17 +38,13 @@
         }
 
         function currentType() {
-            var checked = form.querySelector('input[name="clp-type"]:checked');
-            return checked ? checked.value : 'texte';
+            var found = CLP_DATA.subcategories.filter(function (s) { return s.key === subSelect.value; })[0];
+            return found ? found.type : 'texte';
         }
 
         function fillSubcategories() {
-            var type = currentType();
             subSelect.innerHTML = '';
             CLP_DATA.subcategories.forEach(function (sub) {
-                if (sub.type !== type) {
-                    return;
-                }
                 var opt = document.createElement('option');
                 opt.value = sub.key;
                 opt.textContent = sub.label;
@@ -71,13 +66,8 @@
             fileInput.setAttribute('accept', exts.map(function (e) { return '.' + e; }).join(','));
         }
 
-        typeRadios.forEach(function (radio) {
-            radio.addEventListener('change', function () {
-                if (lockedSubcategory !== '') {
-                    return;
-                }
-                fillSubcategories();
-            });
+        subSelect.addEventListener('change', function () {
+            updateFileHint();
         });
 
         var checkToggle = document.getElementById('clp-check-toggle');
@@ -134,7 +124,7 @@
                         if (confirmWrap) {
                             confirmWrap.classList.toggle('clp-hidden', !alreadyDeposited);
                         }
-                        setMessage(verifyMsg, 'Identifiant vérifié.', true);
+                        setMessage(verifyMsg, 'Vous êtes bien inscrit à cet appel ' + (CLP_DATA.appel_label || '') + '.', true);
                         stepCat.classList.remove('clp-hidden');
                     } else {
                         setMessage(verifyMsg, data.message || 'Identifiant invalide.', false);

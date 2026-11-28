@@ -7,7 +7,7 @@ Toutes les valeurs se saisissent dans **Réglages → Contribalapelle** (admin W
 
 | Champ | Où le trouver | Remarque |
 | --- | --- | --- |
-| Nom de l'appel | — | Sert à nommer le dossier Dropbox : `Depots-<nom>/` avec sous-dossiers `fiction`, `poesie`, `image`. Ex. `purple`. |
+| Nom de l'appel | — | Sert à nommer le dossier Dropbox : `Depots-<nom>/` avec **un sous-dossier par catégorie** (`fiction_500`, `fiction_250`, `haiku`, `poeme_long`, `poeme_court`, `photographie`, `illustration`). Ex. `purple`. |
 | Nom de l'appel affiché | défaut = nom de l'appel | Utilisé dans les e-mails et messages (ex. « Purple — Pourtant couleur n°13 »). |
 | Ouverture du dépôt | décision de l'équipe | Format `JJ/MM/AAAA HH:MM`, fuseau **Europe/Paris**. |
 | Clôture du dépôt | décision de l'équipe | Idem. Hors fenêtre, le formulaire est en lecture seule et tout dépôt est refusé. |
@@ -15,8 +15,9 @@ Toutes les valeurs se saisissent dans **Réglages → Contribalapelle** (admin W
 
 ## 2. Libellés des sous-catégories
 
-Cinq sous-catégories de texte (fiction 500, fiction 250, haïku, poème long, poème court) et la catégorie
-image : les libellés affichés sur le formulaire sont modifiables (utile pour chaque nouvel appel).
+Sept catégories : fiction 500, fiction 250, haïku, poème long, poème court, **photographie**, **illustration**
+(texte : odt/docx/pdf ; photographie et illustration : jpg/jpeg/png/tif/tiff). Les libellés affichés sur le
+formulaire sont modifiables (utile pour chaque nouvel appel). Un dossier Dropbox est créé par catégorie.
 
 ## 3. HelloAsso (vérification des tickets)
 

@@ -54,6 +54,7 @@ class CLP_Shortcode
                 'texte' => CLP_Settings::allowed_extensions('texte'),
                 'image' => CLP_Settings::allowed_extensions('image'),
             ),
+            'appel_label' => CLP_Settings::appel_label(),
         ));
     }
 
@@ -105,15 +106,12 @@ class CLP_Shortcode
                     <label class="clp-label" for="clp-email">Votre e-mail (facultatif)</label>
                     <input type="email" id="clp-email" name="email" class="clp-input"<?php echo $disabled; ?>>
                     <p class="clp-hint">Utilisé uniquement pour le message de confirmation si HelloAsso ne le fournit pas.</p>
-                    <button type="button" class="clp-btn" id="clp-verify-btn"<?php echo $disabled; ?>>Vérifier</button>
+                    <button type="button" class="clp-btn" id="clp-verify-btn"<?php echo $disabled; ?>>Vérifier mon inscription</button>
                     <p class="clp-message" id="clp-verify-message" aria-live="polite"></p>
                 </div>
 
                 <div class="clp-step clp-hidden" id="clp-step-cat">
-                    <span class="clp-label">Type de contribution</span>
-                    <label class="clp-radio"><input type="radio" name="clp-type" value="texte" checked<?php echo $disabled; ?>> Texte</label>
-                    <label class="clp-radio"><input type="radio" name="clp-type" value="image"<?php echo $disabled; ?>> Image</label>
-                    <label class="clp-label" for="clp-subcategory">Sous-catégorie</label>
+                    <label class="clp-label" for="clp-subcategory">Catégorie de contribution</label>
                     <select id="clp-subcategory" name="subcategory" class="clp-input"<?php echo $disabled; ?>></select>
                     <button type="button" class="clp-btn clp-next" id="clp-to-file"<?php echo $disabled; ?>>Continuer</button>
                 </div>

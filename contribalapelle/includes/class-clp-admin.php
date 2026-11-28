@@ -81,7 +81,7 @@ class CLP_Admin
         $tickets = CLP_DB::recent_tickets(200);
         ?>
         <div class="wrap">
-            <h1>Contribalapelle — Suivi des dépôts</h1>
+            <h1>Contribalapelle — Suivi des dépôts <span class="clp-version">v<?php echo esc_html(CLP_VERSION); ?></span></h1>
             <p>Chaque tentative (vérification ou dépôt, réussie ou refusée) est journalisée. Les données sont supprimées après la publication du numéro de la revue.</p>
             <p>
                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;">

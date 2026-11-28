@@ -88,7 +88,21 @@ class CLP_Upload
 
     public static function handle_verify(): void
     {
-        check_ajax_referer('clp_verify', 'nonce');
+        try {
+            self::do_handle_verify();
+        } catch (Throwable $e) {
+            CLP_DB::log('verify', '', 'refused', 'erreur-interne', $e->getMessage());
+            wp_send_json(array('success' => false, 'reason' => 'erreur-interne', 'message' => 'Erreur serveur : ' . $e->getMessage()), 500);
+        }
+    }
+
+    private static function do_handle_verify(): void
+    {
+        $nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'clp_verify')) {
+            CLP_DB::log('verify', '', 'refused', 'nonce-invalide', 'session expirée : recharger la page');
+            wp_send_json(array('success' => false, 'reason' => 'nonce-invalide', 'message' => 'Session expirée : rechargez la page (Ctrl+F5) puis réessayez.'), 403);
+        }
         $input = self::identifier_input();
 
         $window = CLP_Window::status();
@@ -151,7 +165,21 @@ class CLP_Upload
 
     public static function handle_deposit(): void
     {
-        check_ajax_referer('clp_deposit', 'nonce');
+        try {
+            self::do_handle_deposit();
+        } catch (Throwable $e) {
+            CLP_DB::log('deposit', '', 'refused', 'erreur-interne', $e->getMessage());
+            wp_send_json(array('success' => false, 'reason' => 'erreur-interne', 'message' => 'Erreur serveur : ' . $e->getMessage()), 500);
+        }
+    }
+
+    private static function do_handle_deposit(): void
+    {
+        $nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'clp_deposit')) {
+            CLP_DB::log('deposit', '', 'refused', 'nonce-invalide', 'session expirée : recharger la page');
+            wp_send_json(array('success' => false, 'reason' => 'nonce-invalide', 'message' => 'Session expirée : rechargez la page (Ctrl+F5) puis réessayez.'), 403);
+        }
         list($payload, $status) = self::process_deposit();
         wp_send_json($payload, $status);
     }

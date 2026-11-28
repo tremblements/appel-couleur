@@ -361,7 +361,7 @@ class CLP_Settings
         $o = self::OPTION_KEY;
         ?>
         <div class="wrap">
-            <h1>Contribalapelle — Paramètres</h1>
+            <h1>Contribalapelle — Paramètres <span class="clp-version">v<?php echo esc_html(CLP_VERSION); ?></span></h1>
             <?php if (isset($_GET['clp_msg'])) : ?>
                 <div class="notice notice-info"><p><?php echo esc_html(sanitize_text_field(wp_unslash($_GET['clp_msg']))); ?></p></div>
             <?php endif; ?>

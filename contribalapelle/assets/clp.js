@@ -36,6 +36,16 @@
             el.classList.toggle('clp-err', !ok);
         }
 
+        function parseAjax(r) {
+            return r.text().then(function (txt) {
+                var data;
+                try { data = JSON.parse(txt); } catch (e) {
+                    data = { success: false, message: 'Réponse serveur illisible (début : ' + txt.slice(0, 120) + ') — rechargez la page (Ctrl+F5).' };
+                }
+                return data;
+            });
+        }
+
         function currentType() {
             var found = CLP_DATA.subcategories.filter(function (s) { return s.key === subSelect.value; })[0];
             return found ? found.type : 'texte';
@@ -112,9 +122,9 @@
             fd.append('nonce', CLP_DATA.nonce_verify);
             fd.append('ticket', ticketInput.value);
             fetch(CLP_DATA.ajax_url, { method: 'POST', body: fd, credentials: 'same-origin' })
-                .then(function (r) { return r.json().then(function (data) { return { status: r.status, data: data }; }); })
-                .then(function (res) {
-                    var data = res.data || {};
+                .then(parseAjax)
+                .then(function (data) {
+                    data = data || {};
                     if (data.success && data.valid) {
                         alreadyDeposited = !!data.already_deposited;
                         fillSubcategories();
@@ -155,9 +165,9 @@
             var submitBtn = document.getElementById('clp-submit');
             submitBtn.disabled = true;
             fetch(CLP_DATA.ajax_url, { method: 'POST', body: fd, credentials: 'same-origin' })
-                .then(function (r) { return r.json().then(function (data) { return { status: r.status, data: data }; }); })
-                .then(function (res) {
-                    var data = res.data || {};
+                .then(parseAjax)
+                .then(function (data) {
+                    data = data || {};
                     if (data.success) {
                         setMessage(depositMsg, data.message || 'Votre contribution a bien été déposée. Merci !', true);
                         if (depositDetail) {

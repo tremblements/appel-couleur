@@ -61,7 +61,7 @@ désigne le premier billet non encore déposé.
    - **Full Dropbox** : `Depots-<nom>/` sera créé **à la racine** du compte Dropbox (à côté de votre dossier existant).
    Nom de l'app : ex. `Contribalapelle`. Validez.
 3. Onglet **Permissions** : cochez `files.content.write` (upload + suppression), `files.content.read`, `files.metadata.read`, `files.metadata.write` → **Submit**.
-4. Onglet **Settings** → section **OAuth 2** → cliquez **Generate** sous « Generated access token » → copiez le token (commence par `sl.`). S'il est proposé, réglez l'expiration sur **« No expiration »** (sinon le token expire au bout de ~4 h et il faudra le régénérer — on peut ajouter le support refresh token au plugin si besoin).
+4. Onglet **Settings** → section **OAuth 2** → cliquez **Generate** sous « Generated access token » → copiez le token (commence par `sl.`). **Important** : une app reste en mode « Development » tant qu'elle n'est pas passée en production, et seuls des tokens courts (~4 h) y sont délivrés. Passez d'abord l'app en **Production** (App Console → votre app → Settings → « Apply for production » — immédiat pour une app limitée à son propre dossier d'app), PUIS régénérez le token avec l'expiration **« No expiration »**. Sinon le token expire au bout de ~4 h et les dépôts échouent (message « jeton Dropbox expiré »).
 5. Collez le token dans **Réglages → Contribalapelle → Access Token Dropbox**, enregistrez.
 
 Le token est un secret : il est stocké dans `wp_options` et n'est jamais journalisé ni affiché côté public.

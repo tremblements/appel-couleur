@@ -92,7 +92,9 @@ class CLP_Shortcode
                     <p class="clp-progress-text"><?php echo esc_html($deposits . ' dépôt(s) effectué(s)' . ($total_items > 0 ? ' sur ' . $total_items . ' billet(s)' : '')); ?></p>
                 </div>
             <?php endif; ?>
-            <?php if (!$read_only) : ?>
+            <?php if ($window['status'] === 'closed') : ?>
+                <button type="button" class="clp-toggle clp-toggle-closed" id="clp-toggle" disabled>Dépôt fermé : appel clos</button>
+            <?php else : ?>
                 <button type="button" class="clp-toggle" id="clp-toggle">Je dépose</button>
             <?php endif; ?>
             <form class="clp-form<?php echo $hidden; ?><?php echo $read_only ? ' clp-readonly' : ''; ?>" id="clp-form" enctype="multipart/form-data" method="post"<?php echo $read_only ? ' aria-disabled="true"' : ''; ?>>
@@ -148,7 +150,6 @@ class CLP_Shortcode
         ob_start();
         ?>
         <div class="clp-preselect">
-            <h3 class="clp-preselect-title">Contributions présélectionnées par le comité de lecture</h3>
             <?php if ($rows === array()) : ?>
                 <p>Aucune contribution présélectionnée pour le moment.</p>
             <?php else : ?>

@@ -7,7 +7,8 @@ Toutes les valeurs se saisissent dans **Réglages → Contribalapelle** (admin W
 
 | Champ | Où le trouver | Remarque |
 | --- | --- | --- |
-| Nom de l'appel | — | Sert à nommer le dossier Dropbox : `Depots-<nom>/` avec sous-dossiers `fiction`, `poesie`, `image`. Ex. `appel-couleur`. |
+| Nom de l'appel | — | Sert à nommer le dossier Dropbox : `Depots-<nom>/` avec sous-dossiers `fiction`, `poesie`, `image`. Ex. `purple`. |
+| Nom de l'appel affiché | défaut = nom de l'appel | Utilisé dans les e-mails et messages (ex. « Purple — Pourtant couleur n°13 »). |
 | Ouverture du dépôt | décision de l'équipe | Format `JJ/MM/AAAA HH:MM`, fuseau **Europe/Paris**. |
 | Clôture du dépôt | décision de l'équipe | Idem. Hors fenêtre, le formulaire est en lecture seule et tout dépôt est refusé. |
 | Taille de la liste de codes humains | 5000 par défaut (10–50 000) | Mots français de 6 lettres échantillonnés dans `contribalapelle/assets/mots-francais.json` (remplaçable par le `words.json` complet de an-array-of-french-words, ~44 600 mots de 6 lettres), puis bouton « Régénérer la liste de codes ». Tirage de préférence sans doublon avec les codes déjà attribués. Nom des fichiers déposés : `date-numero_ticket-code_humain.ext`. Le code est tiré une fois par ticket. |

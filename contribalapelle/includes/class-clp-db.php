@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) {
 
 class CLP_DB
 {
-    const DB_VERSION = '3';
+    const DB_VERSION = '4';
 
     public static function tickets_table(): string
     {
@@ -30,6 +30,7 @@ class CLP_DB
             ticket VARCHAR(64) NOT NULL,
             order_id VARCHAR(64) NOT NULL DEFAULT '',
             payer_email VARCHAR(190) NOT NULL DEFAULT '',
+            payer_name VARCHAR(128) NULL DEFAULT NULL,
             subcategory VARCHAR(32) NULL DEFAULT NULL,
             human_code VARCHAR(16) NULL DEFAULT NULL,
             preselected TINYINT(1) NOT NULL DEFAULT 0,
@@ -68,6 +69,10 @@ class CLP_DB
             if ($columns === array()) {
                 $wpdb->query("ALTER TABLE {$table} ADD COLUMN preselected TINYINT(1) NOT NULL DEFAULT 0 AFTER human_code");
             }
+            $columns = $wpdb->get_results("SHOW COLUMNS FROM {$table} LIKE 'payer_name'");
+            if ($columns === array()) {
+                $wpdb->query("ALTER TABLE {$table} ADD COLUMN payer_name VARCHAR(128) NULL DEFAULT NULL AFTER payer_email");
+            }
             update_option('clp_db_version', self::DB_VERSION);
         }
     }
@@ -82,7 +87,7 @@ class CLP_DB
         return is_array($row) ? $row : null;
     }
 
-    public static function upsert_pending(string $ticket, string $order_id, string $email): void
+    public static function upsert_pending(string $ticket, string $order_id, string $email, string $name = ''): void
     {
         global $wpdb;
         $now = CLP_Window::now()->format('Y-m-d H:i:s');
@@ -92,6 +97,7 @@ class CLP_DB
                 'ticket' => $ticket,
                 'order_id' => $order_id,
                 'payer_email' => $email,
+                'payer_name' => $name,
                 'status' => 'pending',
                 'updated_at' => $now,
             ));
@@ -107,6 +113,12 @@ class CLP_DB
         }
         if ($existing['payer_email'] === '' && $email !== '') {
             $data['payer_email'] = $email;
+        }
+        if ($name !== '' && (empty($existing['payer_name']))) {
+            $data['payer_name'] = $name;
+        }
+        if ($name !== '') {
+            $data['payer_name'] = $name;
         }
         if (count($data) > 1) {
             $wpdb->update(self::tickets_table(), $data, $where);
@@ -134,6 +146,14 @@ class CLP_DB
             $data['deposited_at'] = $now;
         }
         $wpdb->update(self::tickets_table(), $data, array('ticket' => $ticket));
+    }
+
+    public static function set_payer_name(string $ticket, string $name): void
+    {
+        global $wpdb;
+        if ($name !== '') {
+            $wpdb->update(self::tickets_table(), array('payer_name' => $name), array('ticket' => $ticket));
+        }
     }
 
     public static function count_deposits(): int

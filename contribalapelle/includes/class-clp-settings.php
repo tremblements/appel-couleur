@@ -92,6 +92,7 @@ class CLP_Settings
     {
         return array(
             'appel_name' => 'appel',
+            'appel_label' => '',
             'window_open' => '',
             'window_close' => '',
             'codes_count' => 5000,
@@ -157,6 +158,12 @@ class CLP_Settings
             'poeme_court' => 'label_poeme_court',
             'image' => 'label_image',
         );
+    }
+
+    public static function appel_label(): string
+    {
+        $s = self::get();
+        return $s['appel_label'] !== '' ? (string) $s['appel_label'] : (string) $s['appel_name'];
     }
 
     public static function cat_label(string $key): string
@@ -238,7 +245,7 @@ class CLP_Settings
             return $clean;
         }
         $text_keys = array(
-            'appel_name', 'label_fiction_500', 'label_fiction_250', 'label_haiku',
+            'appel_name', 'appel_label', 'label_fiction_500', 'label_fiction_250', 'label_haiku',
             'label_poeme_long', 'label_poeme_court', 'label_image',
             'helloasso_api_url', 'helloasso_client_id', 'helloasso_client_secret',
             'helloasso_org_slug', 'helloasso_form_type', 'helloasso_form_slug',
@@ -305,7 +312,14 @@ class CLP_Settings
                         <th scope="row"><label for="clp-appel">Nom de l'appel</label></th>
                         <td>
                             <input type="text" class="regular-text" id="clp-appel" name="<?php echo esc_attr($o); ?>[appel_name]" value="<?php echo esc_attr($s['appel_name']); ?>">
-                            <p class="description">Dossier Dropbox créé : <code>Depots-&lt;nom-de-l'appel&gt;/</code> (sous-dossiers <code>fiction</code>, <code>poesie</code>, <code>image</code>).</p>
+                            <p class="description">Sert à nommer le dossier Dropbox créé : <code>Depots-&lt;nom&gt;/</code> (sous-dossiers <code>fiction</code>, <code>poesie</code>, <code>image</code>).</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="clp-appel-label">Nom de l'appel affiché</label></th>
+                        <td>
+                            <input type="text" class="regular-text" id="clp-appel-label" name="<?php echo esc_attr($o); ?>[appel_label]" value="<?php echo esc_attr($s['appel_label']); ?>">
+                            <p class="description">Utilisé dans les e-mails et messages affichés (défaut : le nom de l'appel ci-dessus). Ex. : « Purple — Pourtant couleur n°13 ».</p>
                         </td>
                     </tr>
                     <tr>

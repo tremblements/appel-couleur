@@ -69,16 +69,16 @@ class CLP_HelloAsso
             }
             $order_id = isset($order['id']) ? (string) $order['id'] : '';
             if ($mode === 'order_id') {
-                $candidates[] = array('ticket' => $order_id, 'order_id' => $order_id, 'email' => $payer_email);
+                $candidates[] = array('ticket' => $order_id, 'order_id' => $order_id, 'email' => $payer_email, 'name' => self::payer_name($order));
                 continue;
             }
             foreach (self::items_of($order) as $item) {
                 if ($mode === 'item_id' && isset($item['id'])) {
-                    $candidates[] = array('ticket' => (string) $item['id'], 'order_id' => $order_id, 'email' => $payer_email);
+                    $candidates[] = array('ticket' => (string) $item['id'], 'order_id' => $order_id, 'email' => $payer_email, 'name' => self::payer_name($order));
                 } elseif ($mode === 'custom_field') {
                     foreach (self::custom_answers($item) as $answer) {
                         if ($answer !== '') {
-                            $candidates[] = array('ticket' => $answer, 'order_id' => $order_id, 'email' => $payer_email);
+                            $candidates[] = array('ticket' => $answer, 'order_id' => $order_id, 'email' => $payer_email, 'name' => self::payer_name($order));
                         }
                     }
                 }
@@ -505,6 +505,17 @@ class CLP_HelloAsso
         return '';
     }
 
+    private static function payer_name(array $order): string
+    {
+        if (isset($order['payer']['firstName']) && is_string($order['payer']['firstName']) && trim($order['payer']['firstName']) !== '') {
+            return trim($order['payer']['firstName']);
+        }
+        if (isset($order['user']['firstName']) && is_string($order['user']['firstName']) && trim($order['user']['firstName']) !== '') {
+            return trim($order['user']['firstName']);
+        }
+        return '';
+    }
+
     private static function found(array $order): array
     {
         $email = self::payer_email($order);
@@ -513,6 +524,7 @@ class CLP_HelloAsso
             'reason' => '',
             'order_id' => isset($order['id']) ? (string) $order['id'] : '',
             'email' => is_email($email) ? $email : '',
+            'name' => self::payer_name($order),
         );
     }
 

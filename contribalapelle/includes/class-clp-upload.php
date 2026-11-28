@@ -38,6 +38,7 @@ class CLP_Upload
         }
 
         $found = null;
+        $found_name = '';
         foreach ($candidates as $candidate) {
             if (!is_array($candidate) || empty($candidate['ticket'])) {
                 continue;
@@ -45,6 +46,7 @@ class CLP_Upload
             $row = CLP_DB::get_ticket((string) $candidate['ticket']);
             if (is_array($row) && $row['status'] === 'deposited') {
                 $found = $row;
+                $found_name = isset($candidate['name']) ? (string) $candidate['name'] : '';
                 break;
             }
         }
@@ -57,8 +59,12 @@ class CLP_Upload
             ), 404);
         }
 
+        if ($found_name !== '' && empty($found['payer_name'])) {
+            CLP_DB::set_payer_name((string) $found['ticket'], $found_name);
+            $found['payer_name'] = $found_name;
+        }
         $to = !empty($found['payer_email']) ? (string) $found['payer_email'] : $email;
-        $sent = self::send_deposit_receipt($to, $found);
+        $sent = self::send_deposit_receipt($to, (string) ($found['payer_name'] ?? ''), $found);
         CLP_DB::log('check', (string) $found['ticket'], 'success', $sent ? 'mail-envoye' : 'echec-envoi', 'vérification de dépôt');
         wp_send_json(array(
             'success' => true,
@@ -115,7 +121,7 @@ class CLP_Upload
         }
 
         if (!is_array($row)) {
-            CLP_DB::upsert_pending($ticket, $resolved['order_id'], $resolved['email']);
+            CLP_DB::upsert_pending($ticket, $resolved['order_id'], $resolved['email'], isset($resolved['name']) ? (string) $resolved['name'] : '');
             CLP_DB::log('verify', $ticket, 'success', !empty($resolved['test']) ? 'test' : 'api', 'commande ' . $resolved['order_id']);
         } else {
             CLP_DB::log('verify', $ticket, 'success', 'correspondance-locale');
@@ -290,7 +296,7 @@ class CLP_Upload
 
             if (!$replacement) {
                 if (!is_array($row)) {
-                    CLP_DB::upsert_pending($ticket, $resolved['order_id'], $resolved['email']);
+                    CLP_DB::upsert_pending($ticket, $resolved['order_id'], $resolved['email'], isset($resolved['name']) ? (string) $resolved['name'] : '');
                     $row = CLP_DB::get_ticket($ticket);
                 } else {
                     CLP_DB::log('deposit', $ticket, 'success', 'correspondance-locale', 'étape de dépôt');
@@ -358,6 +364,7 @@ class CLP_Upload
                 if ($email !== '') {
                     $email_sent = self::send_confirmation(
                         $email,
+                        is_array($row) ? (string) ($row['payer_name'] ?? '') : '',
                         (string) ($file['name'] ?? ''),
                         CLP_Settings::subcategory_label($subcategory),
                         basename($target),
@@ -452,6 +459,7 @@ class CLP_Upload
                 'ticket' => (string) $chosen['ticket'],
                 'order_id' => isset($chosen['order_id']) ? (string) $chosen['order_id'] : '',
                 'email' => sanitize_email($input),
+                'name' => isset($chosen['name']) ? (string) $chosen['name'] : '',
             );
         } else {
             $verification = CLP_HelloAsso::verify_ticket($input);
@@ -465,6 +473,7 @@ class CLP_Upload
                 'ticket' => $input,
                 'order_id' => $verification['order_id'],
                 'email' => $verification['email'],
+                'name' => isset($verification['name']) ? (string) $verification['name'] : '',
             );
         }
 
